@@ -1,0 +1,33 @@
+randomize_attributes.range = [0.5,1.5]
+
+CircuitBreaker.threshold = 10
+
+SPDTSwitch.threshold = 10
+
+SPMTSwitch.number = 3
+
+Battery.vnom = 100
+Battery.innerR = 10
+Battery.capacity = 100
+
+VoltageSourceAC.peak = 10
+VoltageSourceAC.phase_shift = 10
+VoltageSourceAC.frequency = 50
+
+CurrentSourceAC.peak = 10
+CurrentSourceAC.phase_shift = 10
+CurrentSourceAC.frequency = 50
+
+VoltageSourceDC.voltage = 10
+
+CurrentSourceDC.current = 10
+
+Capacitor.capacitance = 10
+
+Inductor.inductance = 10
+
+Resistor.resistance = 10
+
+Diode.forwardV = 0.5
+Diode.onR = 0.01
+Diode.breakV = 500
