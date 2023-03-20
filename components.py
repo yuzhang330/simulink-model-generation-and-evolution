@@ -41,10 +41,27 @@ class Component:
             port_info.append(port_name)
         return port_info
 
+    def take_port(self, values):
+        extracted_ports = []
+        for value in values:
+            ports = [port_item for port_item in self.get_port_info() if value in port_item]
+            extracted_ports.append(ports)
+        return extracted_ports
+
 
 class Port(Component):
     def __init__(self, name, ID, directory, port, system_type):
         super().__init__(name, ID, "Port", directory, port)
+        self.system_type = system_type
+
+class Utilities(Component):
+    def __init__(self, name, ID, directory, port, system_type):
+        super().__init__(name, ID, "Utilities", directory, port)
+        self.system_type = system_type
+
+class Signal(Component):
+    def __init__(self, name, ID, directory, port, system_type):
+        super().__init__(name, ID, "Signal", directory, port)
         self.system_type = system_type
 
 @gin.configurable()
@@ -79,6 +96,38 @@ class Inport(Port):
 class Outport(Port):
     def __init__(self, ID:int=0):
         super().__init__('Outport', ID, 'path', [1], 'Common')
+
+#Utilities
+class Solver(Utilities):
+    def __init__(self, ID:int=0):
+        super().__init__('Solver', ID, 'path', [1], 'Common')
+
+class PSSimuConv(Utilities):
+    def __init__(self, ID:int=0):
+        super().__init__('PSSimuConv', ID, 'path', [1], 'Common')
+
+class SimuPSConv(Utilities):
+    def __init__(self, ID:int=0):
+        super().__init__('SimuPSConv', ID, 'path', [1], 'Common')
+
+class Scope(Utilities):
+    def __init__(self, ID:int=0):
+        super().__init__('Scope', ID, 'path', [1], 'Common')
+
+#Signal
+class Constant(Signal):
+    def __init__(self, ID:int=0, value:float=1):
+        super().__init__('Constant', ID, 'path', [1], 'Common')
+        self.value = float(value)
+
+class Step(Signal):
+    def __init__(self, ID:int=0, step_time:float=1, initial_value:float=0, final_value:float=1, sample_time:float=0):
+        super().__init__('Step', ID, 'path', [1], 'Common')
+        self.step_time = float(step_time)
+        self.initial_value = float(initial_value)
+        self.final_value = float(final_value)
+        self.sample_time = float(sample_time)
+
 
 #Actuator
 @gin.configurable()
@@ -187,7 +236,7 @@ class Inductor(ElectricalElement):
 @gin.configurable()
 class Resistor(ElectricalElement):
     def __init__(self, ID:int=0, resistance:float=10):
-        super().__init__('Resistor', ID, 'path', ['LCoon','RCoon'], 'Both')
+        super().__init__('Resistor', ID, 'path', ['LConn','RConn'], 'Both')
         self.resistance = float(resistance)
 
 @gin.configurable()
@@ -290,10 +339,10 @@ class Diode(ElectricalElement):
 # c = create_component('Inductor', Electrical_Element, current_type='AC', seed=1)
 # c.list_attributes()
 #%%
-r1 = Resistor()
-r2 = Resistor()
-t = [r1,r2]
-merged_list = [obj.get_port_info() for obj in t]
+# r1 = Resistor()
+# r2 = Resistor()
+# t = [r1,r2]
+# merged_list = [obj.get_port_info() for obj in t]
 
 #%%
 # print(('a',t[0].get_port_info()[0]))

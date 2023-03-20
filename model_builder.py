@@ -200,7 +200,35 @@ class DCBuilder(ElectricalModelBuilder):
                     in_out_ports_copy.remove(item1)
 
         return subsystem
-    def create_actuator_subsystem(self):
+    def create_actuator_subsystem(self, seed=None):
+        subsystem = Subsystem(subsystem_type='switch')
+        if seed:
+            random.seed(seed)
+        component = self.component_factory.create_actuator(seed=seed)
+        subsystem.add_component(component)
+        inport = self.component_factory.create_port('Inport')
+        outport = self.component_factory.create_port('Outport')
+        signal = self.component_factory.create_signal('Constant')
+        converter = self.component_factory.create_utilities('SimuPSConv')
+        subsystem.add_component(inport, outport, signal,converter)
+        #connect with port
+        switchs = [switch for switch in subsystem.component_list if switch.component_type == 'Actuator']
+        in_port = [port_class for port_class in subsystem.component_list if port_class.name == 'Inport']
+        out_port = [port_class for port_class in subsystem.component_list if port_class.name == 'Outport']
+        signal = [signal for signal in subsystem.component_list if signal.component_type == 'Signal']
+        converter = [converter for converter in subsystem.component_list if converter.name == 'SimuPSConv']
+        for switch in switchs:
+            for port in switch.get_port_info():
+                if 'threshold' in port:
+                    subsystem.add_connection((port.replace('threshold', ''), converter[0].get_port_info()[1])
+                                             ,(converter[0].get_port_info()[0],signal[0].get_port_info()[0]))
+                if 'LConn' in port and not 'threshold' in port:
+                    subsystem.add_connection((port, in_port[0].get_port_info()[0]))
+                if 'RConn' in port:
+                    subsystem.add_connection((port, out_port[0].get_port_info()[0]))
+
+
+
         return
     def create_sensor_subsystem(self, type, max_num_component=3, seed=None):
         if seed:

@@ -72,6 +72,13 @@ a,b = separate_strings(['+/aaa','+/bbb','-/ccc','/ddd'])
 #%%
 r1 = Resistor()
 r2 = Resistor()
-sys = Subsystem()
-sys.add_component(r1,r2)
-sys.list_components()
+# sys = Subsystem()
+# sys.add_component(r1,r2)
+# sys.list_components()
+print(r1.take_port(['LConn','RConn']))
+#%%
+str = ['thresholdL','thrL','L']
+for s in str:
+    if 'L' in s and 'threshold' not in s:
+        print(s)
+

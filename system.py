@@ -72,11 +72,12 @@ class System(Container):
         else:
             raise ValueError("Only instances of Subsystem can be added to the subsystem_list.")
 
-    def add_connection(self, connection):
-        if isinstance(connection, tuple):
-            self.connections.append(connection)
-        else:
-            raise ValueError("Connections must be tuples.")
+    def add_connection(self, *connections):
+        for connection in connections:
+            if isinstance(connection, tuple):
+                self.connections.append(connection)
+            else:
+                raise ValueError("Connections must be tuples.")
 
     def list_components(self):
         return [f"{component.name}_id{component.ID}" for component in self.component_list]
