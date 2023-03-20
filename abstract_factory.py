@@ -75,32 +75,32 @@ class ElectriaclComponentFactory(AbstractComponentFactory):
 @gin.configurable()
 class ACComponentFactory(ElectriaclComponentFactory):
     @gin.configurable()
-    def create_sensor(self, name=None, seed=None):
+    def create_sensor(self, name=None, seed=None, randomattr=True):
         if name:
-            return self.create_component(name, ElectricalSensor, current_type='AC', seed=seed)
+            return self.create_component(name, ElectricalSensor, current_type='AC', seed=seed, randomattr=randomattr)
         else:
-            return self.random_component(ElectricalSensor, 'AC', seed)
+            return self.random_component(ElectricalSensor, 'AC', seed=seed)
 
     @gin.configurable()
-    def create_source(self, name=None, seed=None):
+    def create_source(self, name=None, seed=None, randomattr=True):
         if name:
-            return self.create_component(name, ElectricalSource, current_type='AC', seed=seed)
+            return self.create_component(name, ElectricalSource, current_type='AC', seed=seed, randomattr=randomattr)
         else:
-            return self.random_component(ElectricalSource, 'AC', seed)
+            return self.random_component(ElectricalSource, 'AC', seed=seed)
 
     @gin.configurable()
-    def create_element(self, name=None, seed=None):
+    def create_element(self, name=None, seed=None, randomattr=True):
         if name:
-            return self.create_component(name, ElectricalElement, current_type='AC', seed=seed)
+            return self.create_component(name, ElectricalElement, current_type='AC', seed=seed, randomattr=randomattr)
         else:
-            return self.random_component(ElectricalElement, 'AC', seed)
+            return self.random_component(ElectricalElement, 'AC', seed=seed)
 
     @gin.configurable()
-    def create_actuator(self, name=None, seed=None):
+    def create_actuator(self, name=None, seed=None, randomattr=True):
         if name:
-            return self.create_component(name, ElectricalActuator, current_type='AC', seed=seed)
+            return self.create_component(name, ElectricalActuator, current_type='AC', seed=seed, randomattr=randomattr)
         else:
-            return self.random_component(ElectricalActuator, 'AC', seed)
+            return self.random_component(ElectricalActuator, 'AC', seed=seed)
 
 @gin.configurable()
 class DCComponentFactory(ElectriaclComponentFactory):
@@ -109,28 +109,28 @@ class DCComponentFactory(ElectriaclComponentFactory):
         if name:
             return self.create_component(name, ElectricalSensor, current_type='DC', seed=seed, randomattr=randomattr)
         else:
-            return self.random_component(ElectricalSensor, 'DC', seed)
+            return self.random_component(ElectricalSensor, 'DC', seed=seed)
 
     @gin.configurable()
     def create_source(self, name=None, seed=None, randomattr=True):
         if name:
             return self.create_component(name, ElectricalSource, current_type='DC', seed=seed, randomattr=randomattr)
         else:
-            return self.random_component(ElectricalSource, 'DC', seed)
+            return self.random_component(ElectricalSource, 'DC', seed=seed)
 
     @gin.configurable()
     def create_element(self, name=None, seed=None, randomattr=True):
         if name:
             return self.create_component(name, ElectricalElement, current_type='DC', seed=seed, randomattr=randomattr)
         else:
-            return self.random_component(ElectricalElement, 'DC', seed)
+            return self.random_component(ElectricalElement, 'DC', seed=seed)
 
     @gin.configurable()
     def create_actuator(self, name=None, seed=None, randomattr=True):
         if name:
             return self.create_component(name, ElectricalActuator, current_type='DC', seed=seed, randomattr=randomattr)
         else:
-            return self.random_component(ElectricalActuator, 'DC', seed)
+            return self.random_component(ElectricalActuator, 'DC', seed=seed)
 #%%
 gin.parse_config_file('my_config.gin')
 a = DCComponentFactory()

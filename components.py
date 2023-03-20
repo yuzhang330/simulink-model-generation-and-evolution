@@ -1,6 +1,6 @@
 #%%
 import gin
-
+import random
 @gin.configurable()
 class Component:
     def __init__(self, name, ID, component_type, directory, port):
@@ -33,6 +33,13 @@ class Component:
             else:
                 new_value = random.uniform(value_range[0], value_range[1])
             setattr(self, attr, new_value)
+
+    def get_port_info(self):
+        port_info = []
+        for port in self.port:
+            port_name = f"{self.name}_id{self.ID}_port{port}"
+            port_info.append(port_name)
+        return port_info
 
 
 class Port(Component):
@@ -180,7 +187,7 @@ class Inductor(ElectricalElement):
 @gin.configurable()
 class Resistor(ElectricalElement):
     def __init__(self, ID:int=0, resistance:float=10):
-        super().__init__('Resistor', ID, 'path', [], 'Both')
+        super().__init__('Resistor', ID, 'path', ['LCoon','RCoon'], 'Both')
         self.resistance = float(resistance)
 
 @gin.configurable()
@@ -229,12 +236,12 @@ class Diode(ElectricalElement):
 #%%
 # print(a.name)
 #%%
-def random_electrical_source(category, current_type, seed=None):
-    if seed:
-        random.seed(seed)
-
-    cls_list= [cls for cls in category.__subclasses__() if cls().current_type == current_type or cls().current_type == 'Both']
-    random_cls = random.choice(cls_list)
+# def random_electrical_source(category, current_type, seed=None):
+#     if seed:
+#         random.seed(seed)
+#
+#     cls_list= [cls for cls in category.__subclasses__() if cls().current_type == current_type or cls().current_type == 'Both']
+#     random_cls = random.choice(cls_list)
     # sig = inspect.signature(random_cls.__init__)
     # Get the default values of each argument
     # default_args = {
@@ -250,26 +257,26 @@ def random_electrical_source(category, current_type, seed=None):
     #         kwargs[key] = random.uniform(0.5, 1.5) * value
     #     else:
     #         kwargs[key] = value
-    random_cls = random_cls()
-    random_cls.randomize_attributes(seed=seed)
-    return random_cls
+    # random_cls = random_cls()
+    # random_cls.randomize_attributes(seed=seed)
+    # return random_cls
 #%%
-def create_component(name, category, current_type=None, seed=None):
-    if seed:
-        random.seed(seed)
-
-    for cls in category.__subclasses__():
-        if  cls().name == name:
-            cls_instance = cls()
-            cls_instance.randomize_attributes(seed=seed)
-            if current_type:
-                if cls().current_type == current_type or cls().current_type == 'Both':
-                    return cls_instance
-                else:
-                    raise TypeError(f"{name} is not the current type")
-            else:
-                return cls_instance
-    raise TypeError(f"{name} not found in the category")
+# def create_component(name, category, current_type=None, seed=None):
+#     if seed:
+#         random.seed(seed)
+#
+#     for cls in category.__subclasses__():
+#         if  cls().name == name:
+#             cls_instance = cls()
+#             cls_instance.randomize_attributes(seed=seed)
+#             if current_type:
+#                 if cls().current_type == current_type or cls().current_type == 'Both':
+#                     return cls_instance
+#                 else:
+#                     raise TypeError(f"{name} is not the current type")
+#             else:
+#                 return cls_instance
+#     raise TypeError(f"{name} not found in the category")
 
 
 #%%
@@ -282,3 +289,11 @@ def create_component(name, category, current_type=None, seed=None):
 #%%
 # c = create_component('Inductor', Electrical_Element, current_type='AC', seed=1)
 # c.list_attributes()
+#%%
+r1 = Resistor()
+r2 = Resistor()
+t = [r1,r2]
+merged_list = [obj.get_port_info() for obj in t]
+
+#%%
+# print(('a',t[0].get_port_info()[0]))

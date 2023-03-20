@@ -20,16 +20,17 @@ class Subsystem(Container):
         self.ID = ID
         self.subsystem_type = subsystem_type
 
-    def add_component(self, component):
-        if isinstance(component, Component):
-            name_count = sum(1 for c in self.component_list if c.name == component.name)
-            if name_count > 0:
-                existing_ids = [c.ID for c in self.component_list if c.name == component.name]
-                max_id = max(existing_ids)
-                component.ID = max_id + 1
-            self.component_list.append(component)
-        else:
-            raise ValueError("Only instances of Component can be added to component_list.")
+    def add_component(self, *components):
+        for component in components:
+            if isinstance(component, Component):
+                name_count = sum(1 for c in self.component_list if c.name == component.name)
+                if name_count > 0:
+                    existing_ids = [c.ID for c in self.component_list if c.name == component.name]
+                    max_id = max(existing_ids)
+                    component.ID = max_id + 1
+                self.component_list.append(component)
+            else:
+                raise ValueError("Only instances of Component can be added to component_list.")
 
     def add_connection(self, connection):
         if isinstance(connection, tuple):
@@ -38,7 +39,7 @@ class Subsystem(Container):
             raise ValueError("Connections must be tuples.")
 
     def list_components(self):
-        return [component.name for component in self.component_list]
+        return [f"{component.name}_id{component.ID}" for component in self.component_list]
 
     def list_connections(self):
         return [f"{src} -> {dest}" for (src, dest) in self.connections]
@@ -53,16 +54,17 @@ class System(Container):
         self.solver = solver
         self.stop_time = stop_time
 
-    def add_component(self, component):
-        if isinstance(component, Component):
-            name_count = sum(1 for c in self.component_list if c.name == component.name)
-            if name_count > 0:
-                existing_ids = [c.ID for c in self.component_list if c.name == component.name]
-                max_id = max(existing_ids)
-                component.ID = max_id + 1
-            self.component_list.append(component)
-        else:
-            raise ValueError("Only instances of Component can be added to component_list.")
+    def add_component(self, *components):
+        for component in components:
+            if isinstance(component, Component):
+                name_count = sum(1 for c in self.component_list if c.name == component.name)
+                if name_count > 0:
+                    existing_ids = [c.ID for c in self.component_list if c.name == component.name]
+                    max_id = max(existing_ids)
+                    component.ID = max_id + 1
+                self.component_list.append(component)
+            else:
+                raise ValueError("Only instances of Component can be added to component_list.")
 
     def add_subsystem(self, subsystem):
         if isinstance(subsystem, Subsystem):
@@ -77,7 +79,7 @@ class System(Container):
             raise ValueError("Connections must be tuples.")
 
     def list_components(self):
-        return [component.name for component in self.component_list]
+        return [f"{component.name}_id{component.ID}" for component in self.component_list]
 
     def list_subsystem(self):
         return [subsystem.name for subsystem in self.subsystem_list]
