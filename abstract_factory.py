@@ -6,11 +6,6 @@ import gin
 from components import *
 #%%
 class AbstractComponentFactory:
-    def create_component(self):
-        pass
-
-    def random_component(self):
-        pass
 
     def create_sensor(self, name):
         pass
@@ -76,8 +71,17 @@ class ElectriaclComponentFactory(AbstractComponentFactory):
     def create_actuator(self, name):
         pass
 
-    def create_port(self, name):
-        return self.create_component(name, Port, randomattr=False)
+    def create_port(self, name, type=None):
+        if type == 'electrical':
+            port = self.create_component('ConnectionPort', Port, randomattr=False)
+            if name == 'Inport':
+                port.port_type = 'Inport'
+            if name == 'Outport':
+                port.port_type = 'Outport'
+                port.direction = 'right'
+            return port
+        else:
+            return self.create_component(name, Port, randomattr=False)
 
     def create_utilities(self, name):
         return self.create_component(name, Utilities, randomattr=False)
@@ -88,6 +92,10 @@ class ElectriaclComponentFactory(AbstractComponentFactory):
             return self.create_component(name, Signal, seed=seed, randomattr=randomattr)
         else:
             return self.random_component(Signal, seed=seed)
+
+    @gin.configurable()
+    def create_workspace(self, name):
+        return self.create_component(name, Workspace, randomattr=False)
 
 @gin.configurable()
 class ACComponentFactory(ElectriaclComponentFactory):
@@ -129,9 +137,18 @@ class DCComponentFactory(ElectriaclComponentFactory):
             return self.random_component(ElectricalSensor, 'DC', seed=seed)
 
 
-    def create_source(self, name=None, seed=None, randomattr=True):
+    def create_source(self, name=None, type=None, seed=None, randomattr=True):
         if name:
             return self.create_component(name, ElectricalSource, current_type='DC', seed=seed, randomattr=randomattr)
+        elif type:
+            if seed:
+                random.seed(seed)
+            cls_list = [cls for cls in ElectricalSource.__subclasses__() if cls().source_type == type
+                        and (cls().current_type == 'DC' or cls().current_type == 'Both')]
+            random_cls = random.choice(cls_list)
+            random_cls_instance = random_cls()
+            random_cls_instance.randomize_attributes(seed=seed)
+            return random_cls_instance
         else:
             return self.random_component(ElectricalSource, 'DC', seed=seed)
 
@@ -149,10 +166,10 @@ class DCComponentFactory(ElectriaclComponentFactory):
         else:
             return self.random_component(ElectricalActuator, 'DC', seed=seed)
 #%%
-gin.parse_config_file('my_config.gin')
-a = DCComponentFactory()
-ele = a.create_source('Battery',randomattr=False)
+# gin.parse_config_file('my_config.gin')
+# a = DCComponentFactory()
+# ele = a.create_source('Battery',randomattr=False)
 #%%
-ele.list_attributes()
+# ele.list_attributes()
 #%%
-sour = a.create_source()
+# sour = a.create_element('Varistor')

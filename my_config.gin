@@ -13,10 +13,12 @@ Battery.capacity = 100
 VoltageSourceAC.peak = 10
 VoltageSourceAC.phase_shift = 10
 VoltageSourceAC.frequency = 50
+VoltageSourceAC.dc_voltage = 0
 
 CurrentSourceAC.peak = 10
 CurrentSourceAC.phase_shift = 10
 CurrentSourceAC.frequency = 50
+CurrentSourceAC.dc_current = 0
 
 VoltageSourceDC.voltage = 10
 

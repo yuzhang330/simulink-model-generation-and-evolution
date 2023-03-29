@@ -41,13 +41,14 @@ class Component:
             port_info.append(port_name)
         return port_info
 
-    def take_port(self, values):
-        extracted_ports = []
-        for value in values:
-            ports = [port_item for port_item in self.get_port_info() if value in port_item]
-            extracted_ports.append(ports)
-        return extracted_ports
+    def take_port(self, value):
+        ports = [port_item for port_item in self.get_port_info() if value in port_item]
+        return ports
 
+class Workspace(Component):
+    def __init__(self, name, ID, directory, port, system_type):
+        super().__init__(name, ID, "Workspace", directory, port)
+        self.system_type = system_type
 
 class Port(Component):
     def __init__(self, name, ID, directory, port, system_type):
@@ -87,45 +88,76 @@ class Actuator(Component):
     def __init__(self, name, ID, directory, port, system_type):
         super().__init__(name, ID, "Actuator", directory, port)
         self.system_type = system_type
+#Workspace
+class FromWorkspace(Workspace):
+    def __init__(self, ID:int=0, data='simin', sample_time:int=0):
+        super().__init__('FromWorkspace', ID, 'path', ['1'], 'Common')
+        self.data = data
+        self.sample_time = sample_time
 
+class ToWorkspace(Workspace):
+    def __init__(self, ID:int=0, variable_name='simout', sample_time:int=-1):
+        super().__init__('ToWorkspace', ID, 'path', ['1'], 'Common')
+        self.variable_name = variable_name
+        self.sample_time = sample_time
 #Port
 class Inport(Port):
     def __init__(self, ID:int=0):
-        super().__init__('Inport', ID, 'path', [1], 'Common')
+        super().__init__('Inport', ID, 'path', ['1'], 'Common')
 
 class Outport(Port):
     def __init__(self, ID:int=0):
-        super().__init__('Outport', ID, 'path', [1], 'Common')
+        super().__init__('Outport', ID, 'path', ['1'], 'Common')
+
+class ConnectionPort(Port):
+    def __init__(self, ID:int=0, direction='left', port_type=None):
+        super().__init__('ConnectionPort', ID, 'path', ['1'], 'Common')
+        self.direction = direction
+        self.port_type = port_type
+
 
 #Utilities
 class Solver(Utilities):
     def __init__(self, ID:int=0):
-        super().__init__('Solver', ID, 'path', [1], 'Common')
+        super().__init__('Solver', ID, 'path', ['1'], 'Common')
 
 class PSSimuConv(Utilities):
     def __init__(self, ID:int=0):
-        super().__init__('PSSimuConv', ID, 'path', [1], 'Common')
+        super().__init__('PSSimuConv', ID, 'path', ['1','2'], 'Common')
 
 class SimuPSConv(Utilities):
     def __init__(self, ID:int=0):
-        super().__init__('SimuPSConv', ID, 'path', [1], 'Common')
+        super().__init__('SimuPSConv', ID, 'path', ['1','2'], 'Common')
 
 class Scope(Utilities):
     def __init__(self, ID:int=0):
-        super().__init__('Scope', ID, 'path', [1], 'Common')
+        super().__init__('Scope', ID, 'path', ['1'], 'Common')
+
+class Reference(Utilities):
+    def __init__(self, ID:int=0):
+        super().__init__('Reference', ID, 'path', ['1'], 'Both')
 
 #Signal
 class Constant(Signal):
     def __init__(self, ID:int=0, value:float=1):
-        super().__init__('Constant', ID, 'path', [1], 'Common')
+        super().__init__('Constant', ID, 'path', ['1'], 'Common')
         self.value = float(value)
 
 class Step(Signal):
     def __init__(self, ID:int=0, step_time:float=1, initial_value:float=0, final_value:float=1, sample_time:float=0):
-        super().__init__('Step', ID, 'path', [1], 'Common')
+        super().__init__('Step', ID, 'path', ['1'], 'Common')
         self.step_time = float(step_time)
         self.initial_value = float(initial_value)
         self.final_value = float(final_value)
+        self.sample_time = float(sample_time)
+
+class Sine(Signal):
+    def __init__(self, ID:int=0, amplitude:float=1, bias:float=0, frequency:float=1, phase:float=0, sample_time:float=0):
+        super().__init__('Sine', ID, 'path', ['1'], 'Common')
+        self.amplitude = float(amplitude)
+        self.bias = float(bias)
+        self.frequency = float(frequency)
+        self.phase = float(phase)
         self.sample_time = float(sample_time)
 
 
@@ -138,21 +170,32 @@ class ElectricalActuator(Actuator):
 
 @gin.configurable()
 class CircuitBreaker(ElectricalActuator):
-    def __init__(self, ID:int=0, threshold:float=10):
-        super().__init__('CircuitBreaker', ID, 'path', [], 'Both')
+    def __init__(self, ID:int=0, threshold:float=0.5):
+        super().__init__('CircuitBreaker', ID, 'path', ['signalLConn1','LConn2','RConn1'], 'Both')
+        self.threshold = float(threshold)
+
+@gin.configurable()
+class SPSTSwitch(ElectricalActuator):
+    def __init__(self, ID:int=0, threshold:float=0.5):
+        super().__init__('SPSTSwitch', ID, 'path', ['signalLConn1','LConn2','RConn1'], 'Both')
         self.threshold = float(threshold)
 
 @gin.configurable()
 class SPDTSwitch(ElectricalActuator):
-    def __init__(self, ID:int=0, threshold:float=10):
-        super().__init__('SPDTSwitch', ID, 'path', [], 'Both')
+    def __init__(self, ID:int=0, threshold:float=0.5):
+        super().__init__('SPDTSwitch', ID, 'path', ['signalLConn1','LConn2','RConn1'], 'Both')
         self.threshold = float(threshold)
 
 @gin.configurable()
 class SPMTSwitch(ElectricalActuator):
     def __init__(self, ID:int=0, number:int=3):
-        super().__init__('SPMTSwitch', ID, 'path', [], 'Both')
-        self.number = number
+        super().__init__('SPMTSwitch', ID, 'path', ['signalLConn1','LConn2'], 'Both')
+        if number < 3:
+            self.number = 3
+        else:
+            self.number = number
+        for i in range(self.number):
+            self.port.append('RConn' + str(i+1))
 
 #Sensor
 @gin.configurable()
@@ -164,40 +207,59 @@ class ElectricalSensor(Sensor):
 @gin.configurable()
 class CurrentSensor(ElectricalSensor):
     def __init__(self, ID:int=0):
-        super().__init__('CurrentSensor', ID, 'path', [], 'Both')
+        super().__init__('CurrentSensor', ID, 'path', ['scopeLConn1','+LConn2','-RConn1'], 'Both')
 
 @gin.configurable()
 class VoltageSensor(ElectricalSensor):
     def __init__(self, ID:int=0):
-        super().__init__('VoltageSensor', ID, 'path', [], 'Both')
+        super().__init__('VoltageSensor', ID, 'path', ['scopeLConn1','+LConn2','-RConn1'], 'Both')
 
 #Source
 @gin.configurable()
 class ElectricalSource(Source):
-    def __init__(self, name, ID, directory, port, current_type):
+    def __init__(self, name, ID, directory, port, current_type, source_type):
         super().__init__(name, ID, directory, port, 'Electrical')
         self.current_type = current_type
+        self.source_type = source_type
 
 @gin.configurable()
 class Battery(ElectricalSource):
     def __init__(self, ID:int=0, vnom:float=10, innerR:float=10, capacity:float=100):
-        super().__init__('Battery', ID, 'path', [], 'DC')
+        super().__init__('Battery', ID, 'path', ['+LConn1','-RConn1'], 'DC', 'battery')
         self.vnom = float(vnom)
         self.innerR = float(innerR)
         self.capacity = float(capacity)
 
 @gin.configurable()
 class VoltageSourceAC(ElectricalSource):
+    def __init__(self, ID:int=0, peak:float=10, phase_shift:float=10, frequency:float=50, dc_voltage:float=0):
+        super().__init__('VoltageSourceAC', ID, 'path', ['+LConn1','-RConn1'], 'AC', 'voltage')
+        self.peak = float(peak)
+        self.phase_shift = float(phase_shift)
+        self.frequency = float(frequency)
+        self.dc_voltage = float(dc_voltage)
+
+@gin.configurable()
+class ControlledVoltageSourceAC(ElectricalSource):
     def __init__(self, ID:int=0, peak:float=10, phase_shift:float=10, frequency:float=50):
-        super().__init__('VoltageSourceAC', ID, 'path', [], 'AC')
+        super().__init__('ControlledVoltageSourceAC', ID, 'path', ['signalLConn1','+LConn2','-RConn1'], 'AC', 'voltage')
         self.peak = float(peak)
         self.phase_shift = float(phase_shift)
         self.frequency = float(frequency)
 
 @gin.configurable()
 class CurrentSourceAC(ElectricalSource):
+    def __init__(self, ID:int=0, peak:float=10, phase_shift:float=10, frequency:float=50, dc_current:float=0):
+        super().__init__('CurrentSourceAC', ID, 'path', ['+LConn1','-RConn1'], 'AC', 'current')
+        self.peak = float(peak)
+        self.phase_shift = float(phase_shift)
+        self.frequency = float(frequency)
+        self.dc_current = float(dc_current)
+
+@gin.configurable()
+class ControlledCurrentSourceAC(ElectricalSource):
     def __init__(self, ID:int=0, peak:float=10, phase_shift:float=10, frequency:float=50):
-        super().__init__('CurrentSourceAC', ID, 'path', [], 'AC')
+        super().__init__('ControlledCurrentSourceAC', ID, 'path', ['signalLConn1','+LConn2','-RConn1'], 'AC', 'current')
         self.peak = float(peak)
         self.phase_shift = float(phase_shift)
         self.frequency = float(frequency)
@@ -205,13 +267,25 @@ class CurrentSourceAC(ElectricalSource):
 @gin.configurable()
 class VoltageSourceDC(ElectricalSource):
     def __init__(self, ID:int=0, voltage:float=10):
-        super().__init__('VoltageSourceDC', ID, 'path', [], 'DC')
+        super().__init__('VoltageSourceDC', ID, 'path', ['+LConn1','-RConn1'], 'DC', 'voltage')
         self.voltage = float(voltage)
+
+@gin.configurable()
+class ControlledVoltageSourceDC(ElectricalSource):
+    def __init__(self, ID:int=0, voltage:float=10):
+        super().__init__('ControlledVoltageSourceDC', ID, 'path', ['signalLConn1','+LConn2','-RConn1'], 'DC', 'voltage')
+        self.current = float(voltage)
 
 @gin.configurable()
 class CurrentSourceDC(ElectricalSource):
     def __init__(self, ID:int=0, current:float=10):
-        super().__init__('CurrentSourceDC', ID, 'path', [], 'DC')
+        super().__init__('CurrentSourceDC', ID, 'path', ['+LConn1','-RConn1'], 'DC', 'current')
+        self.current = float(current)
+
+@gin.configurable()
+class ControlledCurrentSourceDC(ElectricalSource):
+    def __init__(self, ID:int=0, current:float=10):
+        super().__init__('ControlledCurrentSourceDC', ID, 'path', ['signalLConn1','+LConn2','-RConn1'], 'DC', 'current')
         self.current = float(current)
 
 #Element
@@ -224,14 +298,27 @@ class ElectricalElement(Element):
 @gin.configurable()
 class Capacitor(ElectricalElement):
     def __init__(self, ID:int=0, capacitance:float=10):
-        super().__init__('Capacitor', ID, 'path', [], 'AC')
+        super().__init__('Capacitor', ID, 'path', ['LConn1','RConn1'], 'AC')
         self.capacitance = float(capacitance)
+
+@gin.configurable()
+class VariableCapacitor(ElectricalElement):
+    def __init__(self, ID:int=0, Cmin:float=1e-9):
+        super().__init__('VariableCapacitor', ID, 'path', ['signalLConn1','LConn2','RConn1'], 'AC')
+        self.Cmin = float(Cmin)
+
 
 @gin.configurable()
 class Inductor(ElectricalElement):
     def __init__(self, ID:int=0, inductance:float=10):
-        super().__init__('Inductor', ID, 'path', [], 'AC')
+        super().__init__('Inductor', ID, 'path', ['LConn1','RConn1'], 'AC')
         self.inductance = float(inductance)
+
+@gin.configurable()
+class VariableInductor(ElectricalElement):
+    def __init__(self, ID:int=0, Lmin:float=1e-6):
+        super().__init__('VariableInductor', ID, 'path', ['signalLConn1','LConn2','RConn1'], 'AC')
+        self.Lmin = float(Lmin)
 
 @gin.configurable()
 class Resistor(ElectricalElement):
@@ -240,14 +327,37 @@ class Resistor(ElectricalElement):
         self.resistance = float(resistance)
 
 @gin.configurable()
-class Reference(ElectricalElement):
-    def __init__(self, ID:int=0):
-        super().__init__('Reference', ID, 'path', [], 'Both')
+class Varistor(ElectricalElement):
+    def __init__(self, ID:int=0, vclamp:float=260, roff:float=3e8, ron:float=1, vln:float=130, vnu:float=300, rLeak:float=3e8,
+                 alphaNormal:float=45, rUpturn:float=0.07, prm=None):
+        super().__init__('Varistor', ID, 'path', ['LConn','RConn'], 'Both')
+        if prm:
+            if prm not in ['linear', 'power-law']:
+                raise ValueError("The 'prm' must be either 'linear' or 'power-law'")
+            self.prm = prm
+        else:
+            self.prm = random.choice(['linear', 'power-law'])
+
+        if self.prm == 'linear':
+            self.vclamp = float(vclamp)
+            self.roff = float(roff)
+            self.ron = float(ron)
+
+        elif self.prm == 'power-law':
+            self.vln = float(vln)
+            self.vnu = float(vnu)
+            self.alphaNormal = float(alphaNormal)
+            self.rUpturn = float(rUpturn)
+            self.rLeak = float(rLeak)
+
+
+
+
 
 @gin.configurable()
 class Diode(ElectricalElement):
     def __init__(self, ID:int=0, forwardV:float=0.5, onR:float=0.01, breakV:float=500):
-        super().__init__('Diode', ID, 'path', [], 'Both')
+        super().__init__('Diode', ID, 'path', ['LConn1','RConn1'], 'AC')
         self.forwardV = float(forwardV)
         self.onR = float(onR)
         self.breakV = float(breakV)
