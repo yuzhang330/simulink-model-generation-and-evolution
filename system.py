@@ -147,9 +147,11 @@ class System(Container):
     def add_subsystem(self, *subsystems):
         for subsystem in subsystems:
             if isinstance(subsystem, Subsystem):
-                existing_ids = [sub.ID for sub in self.subsystem_list]
-                max_id = max(existing_ids)
-                subsystem.ID = max_id + 1
+                name_count = sum(1 for s in self.subsystem_list)
+                if name_count > 0:
+                    existing_ids = [sub.ID for sub in self.subsystem_list]
+                    max_id = max(existing_ids)
+                    subsystem.ID = max_id + 1
                 subsystem.list_ports()
                 self.subsystem_list.append(subsystem)
             else:
@@ -205,34 +207,36 @@ class System(Container):
             played_components.append(played_couple)
         return played_components
 
-    def remove_after_third_underscore(s):
-        count = 0
-        for i, char in enumerate(s):
-            if char == '_':
-                count += 1
-                if count == 3:
-                    return s[:i]
+    def remove_after_last_underscore(self, s):
+        last_underscore_index = s.rfind('_')
+        if last_underscore_index != -1:
+            return s[:last_underscore_index]
         return s
+
     def find_paths(self, start, end):
-        def path(visited, current):
+        def path(visited, visited_nodes, current):
             if current == end:
                 result.append(visited)
                 return
-
+            current_new = self.remove_after_last_underscore(current)
             for pair in self.connections:
-                new_pair = (self.remove_after_third_underscore(pair[0]),self.remove_after_third_underscore(pair[1]))
-                if current in new_pair:
-                    next_node = new_pair[0] if new_pair[1] == current else new_pair[1]
-                    if pair not in visited:
-                        path(visited + [pair], next_node)
+                new_pair = (self.remove_after_last_underscore(pair[0]), self.remove_after_last_underscore(pair[1]))
+                if current_new in new_pair:
+                    old_node = pair[0] if new_pair[0] == current_new else pair[1]
+                    if old_node != end:
+                        next_node = pair[0] if new_pair[1] == current_new else pair[1]
+                        next_node_new = self.remove_after_last_underscore(next_node)
+                        if pair not in visited and next_node_new not in visited_nodes:
+                            path(visited + [pair], visited_nodes | {next_node_new}, next_node)
 
         result = []
-        path([], start)
+        path([], {start}, start)
         return result
 
     def extract_elements(self, elements):
         result = [[] for _ in range(len(elements))]
         visited = set()
+
         def chain(start, index):
             visited.add(start)
             result[index].append(start)
@@ -240,8 +244,17 @@ class System(Container):
                 if start in t:
                     next_node = t[0] if t[1] == start else t[1]
                     if next_node not in visited:
+                        print('port')
                         chain(next_node, index)
         for i, element in enumerate(elements):
             chain(element, i)
+        print('portre')
+        return result
+
+    def filter_connections(self, port_list):
+        result = []
+        for element in port_list:
+            filter_connections = [t for t in self.connections if element in t]
+            result.append(filter_connections)
         return result
 

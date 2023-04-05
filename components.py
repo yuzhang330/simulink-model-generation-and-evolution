@@ -183,7 +183,7 @@ class SPSTSwitch(ElectricalActuator):
 @gin.configurable()
 class SPDTSwitch(ElectricalActuator):
     def __init__(self, ID:int=0, threshold:float=0.5):
-        super().__init__('SPDTSwitch', ID, 'path', ['signalLConn1','LConn2','RConn1'], 'Both')
+        super().__init__('SPDTSwitch', ID, 'path', ['signalLConn1','LConn2','RConn1','RConn2'], 'Both')
         self.threshold = float(threshold)
 
 @gin.configurable()
@@ -194,6 +194,12 @@ class SPMTSwitch(ElectricalActuator):
             self.number = 3
         else:
             self.number = number
+        for i in range(self.number):
+            self.port.append('RConn' + str(i+1))
+
+    def change_throw_number(self, number):
+        self.number = number
+        self.port = ['signalLConn1','LConn2']
         for i in range(self.number):
             self.port.append('RConn' + str(i+1))
 
