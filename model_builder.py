@@ -382,43 +382,90 @@ class DCBuilder(ElectricalModelBuilder):
             element_sys.remove(elesys)
         return element_sys
 
-    def add_series_subsys(self, series_elements):
-        for elesys in series_elements:
+    def add_series_connections(self, subsys, base_port, port_1, port_2):
+        if 'inport' in base_port:
+            for inport in subsys.inport_info:
+                self._model.add_connection((inport, port_1))
+            for outport in subsys.outport_info:
+                self._model.add_connection((outport, port_2))
+        else:
+            for inport in subsys.inport_info:
+                self._model.add_connection((inport, port_2))
+            for outport in subsys.outport_info:
+                self._model.add_connection((outport, port_1))
+
+
+    def add_series_subsys(self, subsys, type, exclude_paths=None, connections=None):
+        if type == 'element':
             connection = random.choice(self._model.connections)
             self._model.connections.remove(connection)
             if 'source' in connection:
                 s_port = [x for x in connection if 'source' in x]
                 remain_port = [x for x in connection if x != s_port[0]]
-                if 'inport' in s_port[0]:
-                    for inport in elesys.inport_info:
-                        self._model.add_connection((inport, s_port[0]))
-                    for outport in elesys.outport_info:
-                        self._model.add_connection((outport, remain_port))
-                if 'outport' in s_port[0]:
-                    for inport in elesys.inport_info:
-                        self._model.add_connection((inport, remain_port))
-                    for outport in elesys.outport_info:
-                        self._model.add_connection((outport, s_port[0]))
+                base_port = s_port[0]
+                port_1 = s_port[0]
+                port_2 = remain_port[0]
+                self.add_series_connections(subsys, base_port, port_1, port_2)
             else:
-                if 'inport' in connection[0]:
-                    for inport in elesys.inport_info:
-                        self._model.add_connection((inport, connection[1]))
-                    for outport in elesys.outport_info:
-                        self._model.add_connection((outport, connection[0]))
-                else:
-                    for inport in elesys.inport_info:
-                        self._model.add_connection((inport, connection[0]))
-                    for outport in elesys.outport_info:
-                        self._model.add_connection((outport, connection[1]))
+                base_port = connection[0]
+                port_1 = connection[1]
+                port_2 = connection[0]
+                self.add_series_connections(subsys, base_port, port_1, port_2)
+        if type == 'source':
+            length = []
+            connection = random.choice(self._model.connections)
+            if any(connection in sublist for path in exclude_paths for sublist in path):
+                for path in exclude_paths:
+                    if any(connection in sublist for sublist in path):
+                        length.append(len(path))
+                if all(value > 1 for value in length):
+                    exclude_paths = [[sublist for sublist in path if connection not in sublist] for path in
+                                     exclude_paths]
+            while any(connection in sublist for path in exclude_paths for sublist in path) and any(
+                    value == 1 for value in length):
+                connection = random.choice(self._model.connections)
+            self._model.connections.remove(connection)
+            if any('source' in p for p in connection):
+                s_port = [x for x in connection if 'source' in x]
+                remain_port = [x for x in connection if x != s_port[0]]
+                base_port = s_port[0]
+                port_1 = remain_port[0]
+                port_2 = s_port[0]
+                self.add_series_connections(subsys, base_port, port_1, port_2)
+            else:
+                base_port = connection[0]
+                port_1 = connection[0]
+                port_2 = connection[1]
+                self.add_series_connections(subsys, base_port, port_1, port_2)
+        if type == 'sensor':
+            connection = random.choice(connections)
+            self._model.connections.remove(connection)
+            connections.remove(connection)
+            if 'source' in connection:
+                s_port = [x for x in connection if 'source' in x]
+                remain_port = [x for x in connection if x != s_port[0]]
+                base_port = s_port[0]
+                port_1 = s_port[0]
+                port_2 = remain_port[0]
+                self.add_series_connections(subsys, base_port, port_1, port_2)
+            else:
+                base_port = connection[0]
+                port_1 = connection[1]
+                port_2 = connection[0]
+                self.add_series_connections(subsys, base_port, port_1, port_2)
 
-    def add_parallel_subsys(self, subsys_set):
-        for elesys in subsys_set:
-            connections = self._model.connections.copy()
+
+
+
+
+    def add_parallel_subsys(self, subsys, type, exclude_ports=None, source_sys=None, connections_sensor=None):
+        connections = self._model.connections.copy()
+        if type == 'element':
             port_1 = 'p'
             while 'inport' not in port_1 or 'source' in port_1:
                 connection_1 = random.choice(connections)
                 port_1 = random.choice(connection_1)
-            for inport in elesys.inport_info:
+            for inport in subsys.inport_info:
                 self._model.add_connection((inport, port_1))
             exclude_ports = self._model.extract_elements(
                 [port_1])
@@ -426,8 +473,43 @@ class DCBuilder(ElectricalModelBuilder):
             while 'outport' not in port_2 or 'source' in port_2 or port_2 in exclude_ports[0]:
                 connection = random.choice(connections)
                 port_2 = random.choice(connection)
-            for outport in elesys.outport_info:
+            for outport in subsys.outport_info:
                 self._model.add_connection((outport, port_2))
+        if type == 'source':
+            port_1 = source_sys[0].inport_info[0]
+            port_2 = source_sys[0].outport_info[0]
+            while any(port_1 in sublist for sublist in exclude_ports) and any(port_2 in sublist
+                                                                              for sublist in exclude_ports):
+                connection_1 = random.choice(connections)
+                port_1 = random.choice(connection_1)
+                while 'inport' not in port_1:
+                    connection_1 = random.choice(connections)
+                    port_1 = random.choice(connection_1)
+                exclude_connection = self._model.extract_elements([port_1])
+                connection = random.choice(connections)
+                port_2 = random.choice(connection)
+                while 'outport' not in port_2 or port_2 in exclude_connection[0]:
+                    connection = random.choice(connections)
+                    port_2 = random.choice(connection)
+            for inport in subsys.inport_info:
+                self._model.add_connection((inport, port_1))
+            for outport in subsys.outport_info:
+                self._model.add_connection((outport, port_2))
+        if type == 'sensor':
+            port_1 = 'p'
+            while 'inport' not in port_1:
+                connection_1 = random.choice(connections_sensor)
+                port_1 = random.choice(connection_1)
+            for inport in subsys.inport_info:
+                self._model.add_connection((inport, port_1))
+            exclude_ports = self._model.extract_elements([port_1])
+            port_2 = 'p'
+            while 'outport' not in port_2 or port_2 in exclude_ports[0]:
+                connection = random.choice(connections_sensor)
+                port_2 = random.choice(connection)
+            for outport in subsys.outport_info:
+                self._model.add_connection((outport, port_2))
+
 
     def add_element_subsys(self, element_sys):
         while element_sys:
@@ -437,9 +519,11 @@ class DCBuilder(ElectricalModelBuilder):
             series_elements_size = random.randint(1, len(subset))
             series_elements = random.sample(subset, series_elements_size)
             subset = [x for x in subset if x not in series_elements]
-            self.add_series_subsys(series_elements)
+            for elesys in series_elements:
+                self.add_series_subsys(elesys, 'element')
             if subset:
-                self.add_parallel_subsys(subset)
+                for elesys in subset:
+                    self.add_parallel_subsys(elesys, 'element')
     def check_circuit_source(self, exclude_paths, exclude_ports):
         type_p_in = 0
         type_p_out = 0
@@ -474,70 +558,104 @@ class DCBuilder(ElectricalModelBuilder):
             if type == 'full':
                 continue
             if type == 'p':
-                connections = self._model.connections.copy()
-                port_1 = source_sys[0].inport_info[0]
-                port_2 = source_sys[0].outport_info[0]
-                while any(port_1 in sublist for sublist in exclude_ports) and any(port_2 in sublist
-                                                                                  for sublist in exclude_ports):
-                    connection_1 = random.choice(connections)
-                    port_1 = random.choice(connection_1)
-                    while 'inport' not in port_1:
-                        connection_1 = random.choice(connections)
-                        port_1 = random.choice(connection_1)
-                    exclude_connection = self._model.extract_elements(
-                        [port_1])
-                    connection = random.choice(connections)
-                    port_2 = random.choice(connection)
-                    while 'outport' not in port_2 or port_2 in exclude_connection[0]:
-                        connection = random.choice(connections)
-                        port_2 = random.choice(connection)
-                for inport in soursys.inport_info:
-                    self._model.add_connection((inport, port_1))
-                for outport in soursys.outport_info:
-                    self._model.add_connection((outport, port_2))
+                self.add_parallel_subsys(soursys, 'source', exclude_ports=exclude_ports, source_sys=source_sys)
             if type == 's':
-                length = []
-                connection = random.choice(self._model.connections)
-                if any(connection in sublist for path in exclude_paths for sublist in path):
-                    for path in exclude_paths:
-                        if any(connection in sublist for sublist in path):
-                            length.append(len(path))
-                    if all(value > 1 for value in length):
-                        exclude_paths = [[sublist for sublist in path if connection not in sublist] for path in
-                                         exclude_paths]
-                while any(connection in sublist for path in exclude_paths for sublist in path) and any(
-                        value == 1 for value in length):
-                    connection = random.choice(self._model.connections)
-                self._model.connections.remove(connection)
-                if any('source' in p for p in connection):
-                    s_port = [x for x in connection if 'source' in x]
-                    remain_port = [x for x in connection if x != s_port[0]]
-                    if 'inport' in s_port[0]:
-                        for inport in soursys.inport_info:
-                            self._model.add_connection((inport, remain_port[0]))
-                        for outport in soursys.outport_info:
-                            self._model.add_connection((outport, s_port[0]))
-                    if 'outport' in s_port[0]:
-                        for inport in soursys.inport_info:
-                            self._model.add_connection((inport, s_port[0]))
-                        for outport in soursys.outport_info:
-                            self._model.add_connection((outport, remain_port[0]))
-                else:
-                    if 'inport' in connection[0]:
-                        for inport in soursys.inport_info:
-                            self._model.add_connection((inport, connection[0]))
-                        for outport in soursys.outport_info:
-                            self._model.add_connection((outport, connection[1]))
-                    else:
-                        for inport in soursys.inport_info:
-                            self._model.add_connection((inport, connection[1]))
-                        for outport in soursys.outport_info:
-                            self._model.add_connection((outport, connection[0]))
+                self.add_series_subsys(soursys, 'source', exclude_paths=exclude_paths)
             exports = self._model.extract_elements([soursys.inport_info[0], soursys.outport_info[0]])
             exclude_ports.extend(exports)
             expath = self._model.find_paths(soursys.inport_info[0], soursys.outport_info[0])
             exclude_paths.append(expath)
 
+    def add_main_sensor(self, subsys, connections):
+        connection = random.choice(connections)
+        port = random.choice(connection)
+        all_related_connections = self._model.filter_connections([port])
+        i = 0
+        for connection in all_related_connections[0]:
+            self._model.connections.remove(connection)
+            connections.remove(connection)
+            remain_port = [x for x in connection if x != port]
+            if 'source' in port:
+                if 'inport' in port:
+                    if i == 0:
+                        for inport in subsys.inport_info:
+                            self._model.add_connection((inport, port))
+                        i += 1
+                    for outport in subsys.outport_info:
+                        self._model.add_connection((outport, remain_port[0]))
+                if 'outport' in port:
+                    for inport in subsys.inport_info:
+                        self._model.add_connection((inport, remain_port[0]))
+                    if i == 0:
+                        for outport in subsys.outport_info:
+                            self._model.add_connection((outport, port))
+                        i += 1
+            else:
+                if 'inport' in port:
+                    for inport in subsys.inport_info:
+                        self._model.add_connection((inport, remain_port[0]))
+                    if i == 0:
+                        for outport in subsys.outport_info:
+                            self._model.add_connection((outport, port))
+                        i += 1
+                else:
+                    if i == 0:
+                        for inport in subsys.inport_info:
+                            self._model.add_connection((inport, port))
+                        i += 1
+                    for outport in subsys.outport_info:
+                        self._model.add_connection((outport, remain_port[0]))
+
+    def add_sensor_subsys(self, sensor_sys):
+        connections = self._model.connections.copy()
+        for sensys in sensor_sys:
+            if sensys.subsystem_type == 'sensor_voltage':
+                self.add_parallel_subsys(sensys, 'sensor', connections_sensor=connections)
+            if sensys.subsystem_type == 'sensor_current':
+                type = random.choice(['branch', 'main'])
+                if type == 'branch':
+                    self.add_series_subsys(sensys, 'sensor', connections=connections)
+                if type == 'main':
+                    self.add_main_sensor(sensys, connections)
+            if sensys.subsystem_type == 'sensor_both':
+                connection = random.choice(connections)
+                port = random.choice(connection)
+                while 'inport' not in port:
+                    connection = random.choice(connections)
+                    port = random.choice(connection)
+                all_related_connections = self._model.filter_connections([port])
+                self._model.add_connection((sensys.inport_info[1], port))
+                for connection in all_related_connections[0]:
+                    self._model.connections.remove(connection)
+                    connections.remove(connection)
+                    remain_port = [x for x in connection if x != port]
+                    self._model.add_connection((sensys.inport_info[0], remain_port[0]))
+                # take the measured subsystem
+                id_index = port.find('id')
+                underscore_index = port.find('_', id_index)
+                id = int(port[id_index + 2:underscore_index])
+                subsystem = [subsystem for subsystem in self._model.subsystem_list if subsystem.name ==
+                             port.split('_', 1)[0] and subsystem.ID == id]
+                self._model.add_connection((sensys.outport_info[0], subsystem[0].outport_info[0]))
+    def add_switch_subsys(self, num_actuators, seed):
+        connections = self._model.connections.copy()
+        for i in range(num_actuators):
+            num_pole = random.randint(1, 1)
+            connection = random.choice(connections)
+            port = random.choice(connection)
+            all_related_connections = self._model.filter_connections([port])
+            num_connections = random.randint(1, len(all_related_connections[0]))
+            all_related_connections = random.sample(all_related_connections[0], num_connections)
+            switchsys = self.create_actuator_subsystem(seed=seed, pole_and_throw=[num_pole, num_connections])
+            self._model.add_subsystem(switchsys)
+            self._model.add_connection((switchsys.inport_info[0], port))
+            i = 0
+            for connection in all_related_connections:
+                self._model.connections.remove(connection)
+                connections.remove(connection)
+                remain_port = [x for x in connection if x != port]
+                self._model.add_connection((switchsys.outport_info[i], remain_port[0]))
+                i += 1
 
     def build_subsystem(self, max_num_source=5, max_num_sensor=3, max_num_acuator=2, max_num_element=10, seed=None):
         if seed:
@@ -628,218 +746,221 @@ class DCBuilder(ElectricalModelBuilder):
         #                 self._model.add_connection((outport, port_2))
 
         #add source
-        exclude_ports = self._model.extract_elements([source_sys[0].inport_info[0], source_sys[0].outport_info[0]])
-        path = self._model.find_paths(source_sys[0].inport_info[0], source_sys[0].outport_info[0])
-        exclude_paths = [path]
-        for soursys in source_sys[1:]:
-            type_p_in = 0
-            type_p_out = 0
-            type_s = 0
-            for connection in self._model.connections:
-                length_path = [len(path) for path in exclude_paths if any(connection in sublist for sublist in path)]
-                if all(connection not in sublist for path in exclude_paths for sublist in path) or all(value > 1 for value in length_path):
-                    type_s += 1
-                for port in connection:
-                    if all(port not in sublist for sublist in exclude_ports):
-                        if 'inport' in port:
-                            type_p_in += 1
-                        if 'outport' in port:
-                            type_p_out += 1
-            if type_s and type_p_in * type_p_out:
-                type = random.choice(['s', 'p'])
-            elif type_s:
-                type = 's'
-            elif type_p_in * type_p_out:
-                type = 'p'
-            else:
-                continue
-            if type == 'p':
-                connections = self._model.connections.copy()
-                port_1 = source_sys[0].inport_info[0]
-                port_2 = source_sys[0].outport_info[0]
-                while any(port_1 in sublist for sublist in exclude_ports) and any(port_2 in sublist
-                                                                                  for sublist in exclude_ports):
-                    connection_1 = random.choice(connections)
-                    port_1 = random.choice(connection_1)
-                    while 'inport' not in port_1:
-                        connection_1 = random.choice(connections)
-                        port_1 = random.choice(connection_1)
-                    exclude_connection = self._model.extract_elements(
-                        [port_1])
-                    connection = random.choice(connections)
-                    port_2 = random.choice(connection)
-                    while 'outport' not in port_2 or port_2 in exclude_connection[0]:
-                        connection = random.choice(connections)
-                        port_2 = random.choice(connection)
-                for inport in soursys.inport_info:
-                    self._model.add_connection((inport, port_1))
-                for outport in soursys.outport_info:
-                    self._model.add_connection((outport, port_2))
-            if type == 's':
-                length = []
-                connection = random.choice(self._model.connections)
-                if any(connection in sublist for path in exclude_paths for sublist in path):
-                    for path in exclude_paths:
-                        if any(connection in sublist for sublist in path):
-                            length.append(len(path))
-                    if all(value > 1 for value in length):
-                        exclude_paths = [[sublist for sublist in path if connection not in sublist] for path in exclude_paths]
-                while any(connection in sublist for path in exclude_paths for sublist in path) and any(value == 1 for value in length):
-                    connection = random.choice(self._model.connections)
-                self._model.connections.remove(connection)
-                if any('source' in p for p in connection):
-                    s_port = [x for x in connection if 'source' in x]
-                    remain_port = [x for x in connection if x != s_port[0]]
-                    if 'inport' in s_port[0]:
-                        for inport in soursys.inport_info:
-                            self._model.add_connection((inport, remain_port[0]))
-                        for outport in soursys.outport_info:
-                            self._model.add_connection((outport, s_port[0]))
-                    if 'outport' in s_port[0]:
-                        for inport in soursys.inport_info:
-                            self._model.add_connection((inport, s_port[0]))
-                        for outport in soursys.outport_info:
-                            self._model.add_connection((outport, remain_port[0]))
-                else:
-                    if 'inport' in connection[0]:
-                        for inport in soursys.inport_info:
-                            self._model.add_connection((inport, connection[0]))
-                        for outport in soursys.outport_info:
-                            self._model.add_connection((outport, connection[1]))
-                    else:
-                        for inport in soursys.inport_info:
-                            self._model.add_connection((inport, connection[1]))
-                        for outport in soursys.outport_info:
-                            self._model.add_connection((outport, connection[0]))
-            exports = self._model.extract_elements([soursys.inport_info[0], soursys.outport_info[0]])
-            exclude_ports.extend(exports)
-            expath = self._model.find_paths(soursys.inport_info[0], soursys.outport_info[0])
-            exclude_paths.append(expath)
+        self.add_source_subsys(source_sys)
+        # exclude_ports = self._model.extract_elements([source_sys[0].inport_info[0], source_sys[0].outport_info[0]])
+        # path = self._model.find_paths(source_sys[0].inport_info[0], source_sys[0].outport_info[0])
+        # exclude_paths = [path]
+        # for soursys in source_sys[1:]:
+        #     type_p_in = 0
+        #     type_p_out = 0
+        #     type_s = 0
+        #     for connection in self._model.connections:
+        #         length_path = [len(path) for path in exclude_paths if any(connection in sublist for sublist in path)]
+        #         if all(connection not in sublist for path in exclude_paths for sublist in path) or all(value > 1 for value in length_path):
+        #             type_s += 1
+        #         for port in connection:
+        #             if all(port not in sublist for sublist in exclude_ports):
+        #                 if 'inport' in port:
+        #                     type_p_in += 1
+        #                 if 'outport' in port:
+        #                     type_p_out += 1
+        #     if type_s and type_p_in * type_p_out:
+        #         type = random.choice(['s', 'p'])
+        #     elif type_s:
+        #         type = 's'
+        #     elif type_p_in * type_p_out:
+        #         type = 'p'
+        #     else:
+        #         continue
+        #     if type == 'p':
+        #         connections = self._model.connections.copy()
+        #         port_1 = source_sys[0].inport_info[0]
+        #         port_2 = source_sys[0].outport_info[0]
+        #         while any(port_1 in sublist for sublist in exclude_ports) and any(port_2 in sublist
+        #                                                                           for sublist in exclude_ports):
+        #             connection_1 = random.choice(connections)
+        #             port_1 = random.choice(connection_1)
+        #             while 'inport' not in port_1:
+        #                 connection_1 = random.choice(connections)
+        #                 port_1 = random.choice(connection_1)
+        #             exclude_connection = self._model.extract_elements(
+        #                 [port_1])
+        #             connection = random.choice(connections)
+        #             port_2 = random.choice(connection)
+        #             while 'outport' not in port_2 or port_2 in exclude_connection[0]:
+        #                 connection = random.choice(connections)
+        #                 port_2 = random.choice(connection)
+        #         for inport in soursys.inport_info:
+        #             self._model.add_connection((inport, port_1))
+        #         for outport in soursys.outport_info:
+        #             self._model.add_connection((outport, port_2))
+        #     if type == 's':
+        #         length = []
+        #         connection = random.choice(self._model.connections)
+        #         if any(connection in sublist for path in exclude_paths for sublist in path):
+        #             for path in exclude_paths:
+        #                 if any(connection in sublist for sublist in path):
+        #                     length.append(len(path))
+        #             if all(value > 1 for value in length):
+        #                 exclude_paths = [[sublist for sublist in path if connection not in sublist] for path in exclude_paths]
+        #         while any(connection in sublist for path in exclude_paths for sublist in path) and any(value == 1 for value in length):
+        #             connection = random.choice(self._model.connections)
+        #         self._model.connections.remove(connection)
+        #         if any('source' in p for p in connection):
+        #             s_port = [x for x in connection if 'source' in x]
+        #             remain_port = [x for x in connection if x != s_port[0]]
+        #             if 'inport' in s_port[0]:
+        #                 for inport in soursys.inport_info:
+        #                     self._model.add_connection((inport, remain_port[0]))
+        #                 for outport in soursys.outport_info:
+        #                     self._model.add_connection((outport, s_port[0]))
+        #             if 'outport' in s_port[0]:
+        #                 for inport in soursys.inport_info:
+        #                     self._model.add_connection((inport, s_port[0]))
+        #                 for outport in soursys.outport_info:
+        #                     self._model.add_connection((outport, remain_port[0]))
+        #         else:
+        #             if 'inport' in connection[0]:
+        #                 for inport in soursys.inport_info:
+        #                     self._model.add_connection((inport, connection[0]))
+        #                 for outport in soursys.outport_info:
+        #                     self._model.add_connection((outport, connection[1]))
+        #             else:
+        #                 for inport in soursys.inport_info:
+        #                     self._model.add_connection((inport, connection[1]))
+        #                 for outport in soursys.outport_info:
+        #                     self._model.add_connection((outport, connection[0]))
+        #     exports = self._model.extract_elements([soursys.inport_info[0], soursys.outport_info[0]])
+        #     exclude_ports.extend(exports)
+        #     expath = self._model.find_paths(soursys.inport_info[0], soursys.outport_info[0])
+        #     exclude_paths.append(expath)
         #add sensor
-        connections = self._model.connections.copy()
-        for sensys in sensor_sys:
-            if sensys.subsystem_type == 'sensor_voltage':
-                port_1 = 'p'
-                while 'inport' not in port_1:
-                    connection_1 = random.choice(connections)
-                    port_1 = random.choice(connection_1)
-                for inport in sensys.inport_info:
-                    self._model.add_connection((inport, port_1))
-                exclude_ports = self._model.extract_elements([port_1])
-                port_2 = 'p'
-                while 'outport' not in port_2 or port_2 in exclude_ports[0]:
-                    connection = random.choice(connections)
-                    port_2 = random.choice(connection)
-                for outport in sensys.outport_info:
-                    self._model.add_connection((outport, port_2))
-            if sensys.subsystem_type == 'sensor_current':
-                type = random.choice(['branch', 'main'])
-                if type == 'branch':
-                    connection = random.choice(connections)
-                    self._model.connections.remove(connection)
-                    connections.remove(connection)
-                    if 'source' in connection:
-                        s_port = [x for x in connection if 'source' in x]
-                        remain_port = [x for x in connection if x != s_port[0]]
-                        if 'inport' in s_port[0]:
-                            for inport in sensys.inport_info:
-                                self._model.add_connection((inport, s_port[0]))
-                            for outport in sensys.outport_info:
-                                self._model.add_connection((outport, remain_port[0]))
-                        if 'outport' in s_port[0]:
-                            for inport in sensys.inport_info:
-                                self._model.add_connection((inport, remain_port[0]))
-                            for outport in sensys.outport_info:
-                                self._model.add_connection((outport, s_port[0]))
-                    else:
-                        if 'inport' in connection[0]:
-                            for inport in sensys.inport_info:
-                                self._model.add_connection((inport, connection[1]))
-                            for outport in sensys.outport_info:
-                                self._model.add_connection((outport, connection[0]))
-                        else:
-                            for inport in sensys.inport_info:
-                                self._model.add_connection((inport, connection[0]))
-                            for outport in sensys.outport_info:
-                                self._model.add_connection((outport, connection[1]))
-                if type == 'main':
-                    connection = random.choice(connections)
-                    port = random.choice(connection)
-                    all_related_connections = self._model.filter_connections([port])
-                    i = 0
-                    for connection in all_related_connections[0]:
-                        self._model.connections.remove(connection)
-                        connections.remove(connection)
-                        remain_port = [x for x in connection if x != port]
-                        if 'source' in port:
-                            if 'inport' in port:
-                                if i == 0:
-                                    for inport in sensys.inport_info:
-                                        self._model.add_connection((inport, port))
-                                    i += 1
-                                for outport in sensys.outport_info:
-                                    self._model.add_connection((outport, remain_port[0]))
-                            if 'outport' in port:
-                                for inport in sensys.inport_info:
-                                    self._model.add_connection((inport, remain_port[0]))
-                                if i == 0:
-                                    for outport in sensys.outport_info:
-                                        self._model.add_connection((outport, port))
-                                    i += 1
-                        else:
-                            if 'inport' in port:
-                                for inport in sensys.inport_info:
-                                    self._model.add_connection((inport, remain_port[0]))
-                                if i == 0:
-                                    for outport in sensys.outport_info:
-                                        self._model.add_connection((outport, port))
-                                    i += 1
-                            else:
-                                if i == 0:
-                                    for inport in sensys.inport_info:
-                                        self._model.add_connection((inport, port))
-                                    i += 1
-                                for outport in sensys.outport_info:
-                                    self._model.add_connection((outport, remain_port[0]))
-            if sensys.subsystem_type == 'sensor_both':
-                connection = random.choice(connections)
-                port = random.choice(connection)
-                while 'inport' not in port:
-                    connection = random.choice(connections)
-                    port = random.choice(connection)
-                all_related_connections = self._model.filter_connections([port])
-                self._model.add_connection((sensys.inport_info[1], port))
-                for connection in all_related_connections[0]:
-                    self._model.connections.remove(connection)
-                    connections.remove(connection)
-                    remain_port = [x for x in connection if x != port]
-                    self._model.add_connection((sensys.inport_info[0], remain_port[0]))
-                #take the measured subsystem
-                id_index = port.find('id')
-                underscore_index = port.find('_', id_index)
-                id = int(port[id_index + 2:underscore_index])
-                subsystem = [subsystem for subsystem in self._model.subsystem_list if subsystem.name ==
-                             port.split('_', 1)[0] and subsystem.ID == id]
-                self._model.add_connection((sensys.outport_info[0], subsystem[0].outport_info[0]))
+        self.add_sensor_subsys(sensor_sys)
+        # connections = self._model.connections.copy()
+        # for sensys in sensor_sys:
+        #     if sensys.subsystem_type == 'sensor_voltage':
+        #         port_1 = 'p'
+        #         while 'inport' not in port_1:
+        #             connection_1 = random.choice(connections)
+        #             port_1 = random.choice(connection_1)
+        #         for inport in sensys.inport_info:
+        #             self._model.add_connection((inport, port_1))
+        #         exclude_ports = self._model.extract_elements([port_1])
+        #         port_2 = 'p'
+        #         while 'outport' not in port_2 or port_2 in exclude_ports[0]:
+        #             connection = random.choice(connections)
+        #             port_2 = random.choice(connection)
+        #         for outport in sensys.outport_info:
+        #             self._model.add_connection((outport, port_2))
+        #     if sensys.subsystem_type == 'sensor_current':
+        #         type = random.choice(['branch', 'main'])
+        #         if type == 'branch':
+        #             connection = random.choice(connections)
+        #             self._model.connections.remove(connection)
+        #             connections.remove(connection)
+        #             if 'source' in connection:
+        #                 s_port = [x for x in connection if 'source' in x]
+        #                 remain_port = [x for x in connection if x != s_port[0]]
+        #                 if 'inport' in s_port[0]:
+        #                     for inport in sensys.inport_info:
+        #                         self._model.add_connection((inport, s_port[0]))
+        #                     for outport in sensys.outport_info:
+        #                         self._model.add_connection((outport, remain_port[0]))
+        #                 if 'outport' in s_port[0]:
+        #                     for inport in sensys.inport_info:
+        #                         self._model.add_connection((inport, remain_port[0]))
+        #                     for outport in sensys.outport_info:
+        #                         self._model.add_connection((outport, s_port[0]))
+        #             else:
+        #                 if 'inport' in connection[0]:
+        #                     for inport in sensys.inport_info:
+        #                         self._model.add_connection((inport, connection[1]))
+        #                     for outport in sensys.outport_info:
+        #                         self._model.add_connection((outport, connection[0]))
+        #                 else:
+        #                     for inport in sensys.inport_info:
+        #                         self._model.add_connection((inport, connection[0]))
+        #                     for outport in sensys.outport_info:
+        #                         self._model.add_connection((outport, connection[1]))
+        #         if type == 'main':
+        #             connection = random.choice(connections)
+        #             port = random.choice(connection)
+        #             all_related_connections = self._model.filter_connections([port])
+        #             i = 0
+        #             for connection in all_related_connections[0]:
+        #                 self._model.connections.remove(connection)
+        #                 connections.remove(connection)
+        #                 remain_port = [x for x in connection if x != port]
+        #                 if 'source' in port:
+        #                     if 'inport' in port:
+        #                         if i == 0:
+        #                             for inport in sensys.inport_info:
+        #                                 self._model.add_connection((inport, port))
+        #                             i += 1
+        #                         for outport in sensys.outport_info:
+        #                             self._model.add_connection((outport, remain_port[0]))
+        #                     if 'outport' in port:
+        #                         for inport in sensys.inport_info:
+        #                             self._model.add_connection((inport, remain_port[0]))
+        #                         if i == 0:
+        #                             for outport in sensys.outport_info:
+        #                                 self._model.add_connection((outport, port))
+        #                             i += 1
+        #                 else:
+        #                     if 'inport' in port:
+        #                         for inport in sensys.inport_info:
+        #                             self._model.add_connection((inport, remain_port[0]))
+        #                         if i == 0:
+        #                             for outport in sensys.outport_info:
+        #                                 self._model.add_connection((outport, port))
+        #                             i += 1
+        #                     else:
+        #                         if i == 0:
+        #                             for inport in sensys.inport_info:
+        #                                 self._model.add_connection((inport, port))
+        #                             i += 1
+        #                         for outport in sensys.outport_info:
+        #                             self._model.add_connection((outport, remain_port[0]))
+        #     if sensys.subsystem_type == 'sensor_both':
+        #         connection = random.choice(connections)
+        #         port = random.choice(connection)
+        #         while 'inport' not in port:
+        #             connection = random.choice(connections)
+        #             port = random.choice(connection)
+        #         all_related_connections = self._model.filter_connections([port])
+        #         self._model.add_connection((sensys.inport_info[1], port))
+        #         for connection in all_related_connections[0]:
+        #             self._model.connections.remove(connection)
+        #             connections.remove(connection)
+        #             remain_port = [x for x in connection if x != port]
+        #             self._model.add_connection((sensys.inport_info[0], remain_port[0]))
+        #         #take the measured subsystem
+        #         id_index = port.find('id')
+        #         underscore_index = port.find('_', id_index)
+        #         id = int(port[id_index + 2:underscore_index])
+        #         subsystem = [subsystem for subsystem in self._model.subsystem_list if subsystem.name ==
+        #                      port.split('_', 1)[0] and subsystem.ID == id]
+        #         self._model.add_connection((sensys.outport_info[0], subsystem[0].outport_info[0]))
         #add switch
-        connections = self._model.connections.copy()
-        for i in range(num_actuators):
-            num_pole = random.randint(1, 1)
-            connection = random.choice(connections)
-            port = random.choice(connection)
-            all_related_connections = self._model.filter_connections([port])
-            num_connections = random.randint(1, len(all_related_connections[0]))
-            all_related_connections = random.sample(all_related_connections[0], num_connections)
-            switchsys = self.create_actuator_subsystem(seed=seed, pole_and_throw=[num_pole, num_connections])
-            self._model.add_subsystem(switchsys)
-            self._model.add_connection((switchsys.inport_info[0], port))
-            i = 0
-            for connection in all_related_connections:
-                self._model.connections.remove(connection)
-                connections.remove(connection)
-                remain_port = [x for x in connection if x != port]
-                self._model.add_connection((switchsys.outport_info[i], remain_port[0]))
-                i += 1
+        self.add_switch_subsys(num_actuators, seed)
+        # connections = self._model.connections.copy()
+        # for i in range(num_actuators):
+        #     num_pole = random.randint(1, 1)
+        #     connection = random.choice(connections)
+        #     port = random.choice(connection)
+        #     all_related_connections = self._model.filter_connections([port])
+        #     num_connections = random.randint(1, len(all_related_connections[0]))
+        #     all_related_connections = random.sample(all_related_connections[0], num_connections)
+        #     switchsys = self.create_actuator_subsystem(seed=seed, pole_and_throw=[num_pole, num_connections])
+        #     self._model.add_subsystem(switchsys)
+        #     self._model.add_connection((switchsys.inport_info[0], port))
+        #     i = 0
+        #     for connection in all_related_connections:
+        #         self._model.connections.remove(connection)
+        #         connections.remove(connection)
+        #         remain_port = [x for x in connection if x != port]
+        #         self._model.add_connection((switchsys.outport_info[i], remain_port[0]))
+        #         i += 1
 
 
 
