@@ -1,6 +1,5 @@
 import matlab
 import matlab.engine
-
 class SimulinkInterface:
     def input_systemparameters(self):
         pass
