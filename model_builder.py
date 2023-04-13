@@ -454,10 +454,6 @@ class DCBuilder(ElectricalModelBuilder):
                 port_2 = connection[0]
                 self.add_series_connections(subsys, base_port, port_1, port_2)
 
-
-
-
-
     def add_parallel_subsys(self, subsys, type, exclude_ports=None, source_sys=None, connections_sensor=None):
         connections = self._model.connections.copy()
         if type == 'element':
@@ -524,6 +520,7 @@ class DCBuilder(ElectricalModelBuilder):
             if subset:
                 for elesys in subset:
                     self.add_parallel_subsys(elesys, 'element')
+
     def check_circuit_source(self, exclude_paths, exclude_ports):
         type_p_in = 0
         type_p_out = 0
@@ -637,6 +634,7 @@ class DCBuilder(ElectricalModelBuilder):
                 subsystem = [subsystem for subsystem in self._model.subsystem_list if subsystem.name ==
                              port.split('_', 1)[0] and subsystem.ID == id]
                 self._model.add_connection((sensys.outport_info[0], subsystem[0].outport_info[0]))
+
     def add_switch_subsys(self, num_actuators, seed):
         connections = self._model.connections.copy()
         for i in range(num_actuators):

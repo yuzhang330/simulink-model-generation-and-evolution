@@ -10,6 +10,12 @@ class Component:
         self.component_type = component_type
         self.directory = directory
 
+    @property
+    def parameter(self):
+        parameters = {
+        }
+        return parameters
+
     def change_parameter(self, parameter_name, value):
         if hasattr(self, parameter_name):
             setattr(self, parameter_name, value)
@@ -88,78 +94,132 @@ class Actuator(Component):
     def __init__(self, name, ID, directory, port, system_type):
         super().__init__(name, ID, "Actuator", directory, port)
         self.system_type = system_type
+
 #Workspace
 class FromWorkspace(Workspace):
     def __init__(self, ID:int=0, data='simin', sample_time:int=0):
-        super().__init__('FromWorkspace', ID, 'path', ['1'], 'Common')
+        super().__init__('FromWorkspace', ID, 'simulink/Sources/From Workspace', ['1'], 'Common')
         self.data = data
         self.sample_time = sample_time
 
+    @property
+    def parameter(self):
+        parameters = {
+        'SampleTime': self.sample_time,
+        'VariableName': self.data
+        }
+        return parameters
+
 class ToWorkspace(Workspace):
     def __init__(self, ID:int=0, variable_name='simout', sample_time:int=-1):
-        super().__init__('ToWorkspace', ID, 'path', ['1'], 'Common')
+        super().__init__('ToWorkspace', ID, 'simulink/Sinks/To Workspace', ['1'], 'Common')
         self.variable_name = variable_name
         self.sample_time = sample_time
+
+    @property
+    def parameter(self):
+        parameters = {
+            'SampleTime': self.sample_time,
+            'VariableName': self.variable_name
+        }
+        return parameters
+
 #Port
 class Inport(Port):
     def __init__(self, ID:int=0):
-        super().__init__('Inport', ID, 'path', ['1'], 'Common')
+        super().__init__('Inport', ID, 'simulink/Commonly Used Blocks/In1', ['1'], 'Common')
+
 
 class Outport(Port):
     def __init__(self, ID:int=0):
-        super().__init__('Outport', ID, 'path', ['1'], 'Common')
+        super().__init__('Outport', ID, 'simulink/Commonly Used Blocks/Out1', ['1'], 'Common')
+
 
 class ConnectionPort(Port):
     def __init__(self, ID:int=0, direction='left', port_type=None):
-        super().__init__('ConnectionPort', ID, 'path', ['1'], 'Common')
+        super().__init__('ConnectionPort', ID, 'nesl_utility/Connection Port', ['RConn 1'], 'Common')
         self.direction = direction
         self.port_type = port_type
-
+    @property
+    def parameter(self):
+        parameters = {
+            'Orientation': self.direction
+        }
+        return parameters
 
 #Utilities
 class Solver(Utilities):
     def __init__(self, ID:int=0):
-        super().__init__('Solver', ID, 'path', ['1'], 'Common')
+        super().__init__('Solver', ID, 'nesl_utility/Solver Configuration', ['RConn 1'], 'Common')
 
 class PSSimuConv(Utilities):
     def __init__(self, ID:int=0):
-        super().__init__('PSSimuConv', ID, 'path', ['1','2'], 'Common')
+        super().__init__('PSSimuConv', ID, 'nesl_utility/PS-Simulink Converter', ['LConn 1', '1'], 'Common')
 
 class SimuPSConv(Utilities):
     def __init__(self, ID:int=0):
-        super().__init__('SimuPSConv', ID, 'path', ['1','2'], 'Common')
+        super().__init__('SimuPSConv', ID, 'nesl_utility/Simulink-PS Converter', ['1','RConn 1'], 'Common')
 
 class Scope(Utilities):
     def __init__(self, ID:int=0):
-        super().__init__('Scope', ID, 'path', ['1'], 'Common')
+        super().__init__('Scope', ID, 'simulink/Commonly Used Blocks/Scope', ['1'], 'Common')
 
 class Reference(Utilities):
     def __init__(self, ID:int=0):
-        super().__init__('Reference', ID, 'path', ['1'], 'Both')
+        super().__init__('Reference', ID, 'ee_lib/Connectors & References/Electrical Reference', ['LConn 1'], 'Both')
 
 #Signal
 class Constant(Signal):
     def __init__(self, ID:int=0, value:float=1):
-        super().__init__('Constant', ID, 'path', ['1'], 'Common')
+        super().__init__('Constant', ID, 'simulink/Sources/Constant', ['1'], 'Common')
         self.value = float(value)
+
+    @property
+    def parameter(self):
+        parameters = {
+            'Value': self.value
+        }
+        return parameters
+
+
 
 class Step(Signal):
     def __init__(self, ID:int=0, step_time:float=1, initial_value:float=0, final_value:float=1, sample_time:float=0):
-        super().__init__('Step', ID, 'path', ['1'], 'Common')
+        super().__init__('Step', ID, 'simulink/Sources/Step', ['1'], 'Common')
         self.step_time = float(step_time)
         self.initial_value = float(initial_value)
         self.final_value = float(final_value)
         self.sample_time = float(sample_time)
 
+    @property
+    def parameter(self):
+        parameters = {
+            'Time': self.step_time,
+            'Before': self.initial_value,
+            'After': self.final_value,
+            'SampleTime': self.sample_time
+        }
+        return parameters
+
 class Sine(Signal):
     def __init__(self, ID:int=0, amplitude:float=1, bias:float=0, frequency:float=1, phase:float=0, sample_time:float=0):
-        super().__init__('Sine', ID, 'path', ['1'], 'Common')
+        super().__init__('Sine', ID, 'simulink/Sources/Sine Wave', ['1'], 'Common')
         self.amplitude = float(amplitude)
         self.bias = float(bias)
         self.frequency = float(frequency)
         self.phase = float(phase)
         self.sample_time = float(sample_time)
 
+    @property
+    def parameter(self):
+        parameters = {
+            'Amplitude': self.amplitude,
+            'Bias': self.bias,
+            'Frequency': self.frequency,
+            'Phase': self.phase,
+            'SampleTime': self.sample_time
+        }
+        return parameters
 
 #Actuator
 @gin.configurable()
@@ -171,37 +231,66 @@ class ElectricalActuator(Actuator):
 @gin.configurable()
 class CircuitBreaker(ElectricalActuator):
     def __init__(self, ID:int=0, threshold:float=0.5):
-        super().__init__('CircuitBreaker', ID, 'path', ['signalLConn1','LConn2','RConn1'], 'Both')
+        super().__init__('CircuitBreaker', ID, 'ee_lib/Switches & Breakers/Circuit Breaker', ['signalLConn 1','LConn 2','RConn 1'], 'Both')
         self.threshold = float(threshold)
+
+    @property
+    def parameter(self):
+        parameters = {
+            'threshold': self.threshold
+        }
+        return parameters
 
 @gin.configurable()
 class SPSTSwitch(ElectricalActuator):
     def __init__(self, ID:int=0, threshold:float=0.5):
-        super().__init__('SPSTSwitch', ID, 'path', ['signalLConn1','LConn2','RConn1'], 'Both')
+        super().__init__('SPSTSwitch', ID, 'ee_lib/Switches & Breakers/SPST Switch', ['signalLConn 1','LConn 2','RConn 1'], 'Both')
         self.threshold = float(threshold)
 
+    @property
+    def parameter(self):
+        parameters = {
+            'Threshold': self.threshold
+        }
+        return parameters
 @gin.configurable()
 class SPDTSwitch(ElectricalActuator):
     def __init__(self, ID:int=0, threshold:float=0.5):
-        super().__init__('SPDTSwitch', ID, 'path', ['signalLConn1','LConn2','RConn1','RConn2'], 'Both')
+        super().__init__('SPDTSwitch', ID, 'ee_lib/Switches & Breakers/SPDT Switch', ['signalLConn 1','LConn 2','RConn 1','RConn 2'], 'Both')
         self.threshold = float(threshold)
+
+    @property
+    def parameter(self):
+        parameters = {
+            'Threshold': self.threshold
+        }
+        return parameters
 
 @gin.configurable()
 class SPMTSwitch(ElectricalActuator):
     def __init__(self, ID:int=0, number:int=3):
-        super().__init__('SPMTSwitch', ID, 'path', ['signalLConn1','LConn2'], 'Both')
+        super().__init__('SPMTSwitch', ID, 'ee_lib/Switches & Breakers/SPMT Switch', ['signalLConn 1','LConn 2'], 'Both')
         if number < 3:
             self.number = 3
+        elif number > 8:
+            self.number = 8
         else:
             self.number = number
         for i in range(self.number):
-            self.port.append('RConn' + str(i+1))
+            self.port.append('RConn' + ' ' + str(i+1))
+
+    @property
+    def parameter(self):
+        parameters = {
+            'number_throws': self.number
+        }
+        return parameters
 
     def change_throw_number(self, number):
         self.number = number
-        self.port = ['signalLConn1','LConn2']
+        self.port = ['signalLConn 1', 'LConn 2']
         for i in range(self.number):
-            self.port.append('RConn' + str(i+1))
+            self.port.append('RConn' + ' ' + str(i+1))
 
 #Sensor
 @gin.configurable()
@@ -213,12 +302,13 @@ class ElectricalSensor(Sensor):
 @gin.configurable()
 class CurrentSensor(ElectricalSensor):
     def __init__(self, ID:int=0):
-        super().__init__('CurrentSensor', ID, 'path', ['scopeLConn1','+LConn2','-RConn1'], 'Both')
+        super().__init__('CurrentSensor', ID, 'ee_lib/Sensors & Transducers/Current Sensor', ['scopeLConn 1', '+LConn 2', '-RConn 1 '], 'Both')
+
 
 @gin.configurable()
 class VoltageSensor(ElectricalSensor):
     def __init__(self, ID:int=0):
-        super().__init__('VoltageSensor', ID, 'path', ['scopeLConn1','+LConn2','-RConn1'], 'Both')
+        super().__init__('VoltageSensor', ID, 'ee_lib/Sensors & Transducers/Voltage Sensor', ['scopeLConn 1','+LConn 2','-RConn 1'], 'Both')
 
 #Source
 @gin.configurable()
@@ -230,69 +320,118 @@ class ElectricalSource(Source):
 
 @gin.configurable()
 class Battery(ElectricalSource):
-    def __init__(self, ID:int=0, vnom:float=10, innerR:float=10, capacity:float=100):
-        super().__init__('Battery', ID, 'path', ['+LConn1','-RConn1'], 'DC', 'battery')
+    def __init__(self, ID:int=0, vnom:float=10, innerR:float=10, capacity:float=100, infinite=None):
+        super().__init__('Battery', ID, 'ee_lib/Sources/Battery', ['+LConn 1','-RConn 1'], 'DC', 'battery')
         self.vnom = float(vnom)
         self.innerR = float(innerR)
         self.capacity = float(capacity)
+        self.infinite = infinite
+
+    @property
+    def parameter(self):
+        if self.infinite:
+            parameters = {
+                'Vnom': self.vnom,
+                'R1': self.innerR
+            }
+        else:
+            parameters = {
+                'prm_AH': '2',
+                'Vnom': self.vnom,
+                'R1': self.innerR,
+                'AH': self.capacity
+            }
+        return parameters
 
 @gin.configurable()
 class VoltageSourceAC(ElectricalSource):
     def __init__(self, ID:int=0, peak:float=10, phase_shift:float=10, frequency:float=50, dc_voltage:float=0):
-        super().__init__('VoltageSourceAC', ID, 'path', ['+LConn1','-RConn1'], 'AC', 'voltage')
+        super().__init__('VoltageSourceAC', ID, 'ee_lib/Sources/Voltage Source', ['+LConn 1','-RConn 1'], 'AC', 'voltage')
         self.peak = float(peak)
         self.phase_shift = float(phase_shift)
         self.frequency = float(frequency)
         self.dc_voltage = float(dc_voltage)
 
+    @property
+    def parameter(self):
+        parameters = {
+            'dc_voltage': self.dc_voltage,
+            'ac_voltage': self.peak,
+            'ac_shift': self.phase_shift,
+            'ac_frequency': self.frequency
+        }
+        return parameters
+
 @gin.configurable()
 class ControlledVoltageSourceAC(ElectricalSource):
-    def __init__(self, ID:int=0, peak:float=10, phase_shift:float=10, frequency:float=50):
-        super().__init__('ControlledVoltageSourceAC', ID, 'path', ['signalLConn1','+LConn2','-RConn1'], 'AC', 'voltage')
-        self.peak = float(peak)
-        self.phase_shift = float(phase_shift)
-        self.frequency = float(frequency)
+    def __init__(self, ID:int=0):
+        super().__init__('ControlledVoltageSourceAC', ID, 'fl_lib/Electrical/Electrical Sources/Controlled Voltage Source',
+                         ['signalRConn 1','+LConn 1','-RConn 2'], 'AC', 'voltage')
 
 @gin.configurable()
 class CurrentSourceAC(ElectricalSource):
     def __init__(self, ID:int=0, peak:float=10, phase_shift:float=10, frequency:float=50, dc_current:float=0):
-        super().__init__('CurrentSourceAC', ID, 'path', ['+LConn1','-RConn1'], 'AC', 'current')
+        super().__init__('CurrentSourceAC', ID, 'ee_lib/Sources/Current Source', ['+LConn 1','-RConn 1'], 'AC', 'current')
         self.peak = float(peak)
         self.phase_shift = float(phase_shift)
         self.frequency = float(frequency)
         self.dc_current = float(dc_current)
 
+    @property
+    def parameter(self):
+        parameters = {
+            'dc_current': self.dc_current,
+            'ac_current': self.peak,
+            'ac_shift': self.phase_shift,
+            'ac_frequency': self.frequency
+        }
+        return parameters
+
 @gin.configurable()
 class ControlledCurrentSourceAC(ElectricalSource):
-    def __init__(self, ID:int=0, peak:float=10, phase_shift:float=10, frequency:float=50):
-        super().__init__('ControlledCurrentSourceAC', ID, 'path', ['signalLConn1','+LConn2','-RConn1'], 'AC', 'current')
-        self.peak = float(peak)
-        self.phase_shift = float(phase_shift)
-        self.frequency = float(frequency)
+    def __init__(self, ID:int=0):
+        super().__init__('ControlledCurrentSourceAC', ID, 'fl_lib/Electrical/Electrical Sources/Controlled Current Source',
+                         ['signalRConn 1','+LConn 1','-RConn 2'], 'AC', 'current')
 
 @gin.configurable()
 class VoltageSourceDC(ElectricalSource):
     def __init__(self, ID:int=0, voltage:float=10):
-        super().__init__('VoltageSourceDC', ID, 'path', ['+LConn1','-RConn1'], 'DC', 'voltage')
+        super().__init__('VoltageSourceDC', ID, 'ee_lib/Sources/Voltage Source', ['+LConn 1','-RConn 1'], 'DC', 'voltage')
         self.voltage = float(voltage)
+
+    @property
+    def parameter(self):
+        parameters = {
+            'dc_voltage': self.voltage
+        }
+        return parameters
 
 @gin.configurable()
 class ControlledVoltageSourceDC(ElectricalSource):
-    def __init__(self, ID:int=0, voltage:float=10):
-        super().__init__('ControlledVoltageSourceDC', ID, 'path', ['signalLConn1','+LConn2','-RConn1'], 'DC', 'voltage')
-        self.current = float(voltage)
+    def __init__(self, ID:int=0):
+        super().__init__('ControlledVoltageSourceDC', ID, 'fl_lib/Electrical/Electrical Sources/Controlled Voltage Source',
+                         ['signalRConn 1','+LConn 1','-RConn 2'], 'DC', 'voltage')
+
 
 @gin.configurable()
 class CurrentSourceDC(ElectricalSource):
     def __init__(self, ID:int=0, current:float=10):
-        super().__init__('CurrentSourceDC', ID, 'path', ['+LConn1','-RConn1'], 'DC', 'current')
+        super().__init__('CurrentSourceDC', ID, 'ee_lib/Sources/Current Source', ['+LConn 1','-RConn 1'], 'DC', 'current')
         self.current = float(current)
+
+    @property
+    def parameter(self):
+        parameters = {
+            'dc_current': self.current
+        }
+        return parameters
+
 
 @gin.configurable()
 class ControlledCurrentSourceDC(ElectricalSource):
-    def __init__(self, ID:int=0, current:float=10):
-        super().__init__('ControlledCurrentSourceDC', ID, 'path', ['signalLConn1','+LConn2','-RConn1'], 'DC', 'current')
-        self.current = float(current)
+    def __init__(self, ID:int=0):
+        super().__init__('ControlledCurrentSourceDC', ID, 'fl_lib/Electrical/Electrical Sources/Controlled Current Source',
+                         ['signalRConn 1','+LConn 1','-RConn 2'], 'DC', 'current')
 
 #Element
 @gin.configurable()
@@ -304,39 +443,74 @@ class ElectricalElement(Element):
 @gin.configurable()
 class Capacitor(ElectricalElement):
     def __init__(self, ID:int=0, capacitance:float=10):
-        super().__init__('Capacitor', ID, 'path', ['LConn1','RConn1'], 'AC')
+        super().__init__('Capacitor', ID, 'ee_lib/Passive/Capacitor', ['LConn 1','RConn 1'], 'AC')
         self.capacitance = float(capacitance)
+
+    @property
+    def parameter(self):
+        parameters = {
+            'c': self.capacitance
+        }
+        return parameters
 
 @gin.configurable()
 class VariableCapacitor(ElectricalElement):
     def __init__(self, ID:int=0, Cmin:float=1e-9):
-        super().__init__('VariableCapacitor', ID, 'path', ['signalLConn1','LConn2','RConn1'], 'AC')
+        super().__init__('VariableCapacitor', ID, 'ee_lib/Passive/Variable Capacitor', ['signalLConn 1','LConn 2','RConn 1'], 'AC')
         self.Cmin = float(Cmin)
 
+    @property
+    def parameter(self):
+        parameters = {
+            'Cmin': self.Cmin
+        }
+        return parameters
 
 @gin.configurable()
 class Inductor(ElectricalElement):
     def __init__(self, ID:int=0, inductance:float=10):
-        super().__init__('Inductor', ID, 'path', ['LConn1','RConn1'], 'AC')
+        super().__init__('Inductor', ID, 'ee_lib/Passive/Inductor', ['LConn 1','RConn 1'], 'AC')
         self.inductance = float(inductance)
+
+    @property
+    def parameter(self):
+        parameters = {
+            'I': self.inductance
+        }
+        return parameters
 
 @gin.configurable()
 class VariableInductor(ElectricalElement):
     def __init__(self, ID:int=0, Lmin:float=1e-6):
-        super().__init__('VariableInductor', ID, 'path', ['signalLConn1','LConn2','RConn1'], 'AC')
+        super().__init__('VariableInductor', ID, 'ee_lib/Passive/Variable Inductor', ['signalLConn 1','LConn 2','RConn 1'], 'AC')
         self.Lmin = float(Lmin)
+
+    @property
+    def parameter(self):
+        parameters = {
+            'Lmin': self.Lmin
+        }
+        return parameters
+
 
 @gin.configurable()
 class Resistor(ElectricalElement):
     def __init__(self, ID:int=0, resistance:float=10):
-        super().__init__('Resistor', ID, 'path', ['LConn','RConn'], 'Both')
+        super().__init__('Resistor', ID, 'ee_lib/Passive/Resistor', ['LConn 1','RConn 1'], 'Both')
         self.resistance = float(resistance)
+
+    @property
+    def parameter(self):
+        parameters = {
+            'R': self.resistance
+        }
+        return parameters
 
 @gin.configurable()
 class Varistor(ElectricalElement):
     def __init__(self, ID:int=0, vclamp:float=260, roff:float=3e8, ron:float=1, vln:float=130, vnu:float=300, rLeak:float=3e8,
                  alphaNormal:float=45, rUpturn:float=0.07, prm=None):
-        super().__init__('Varistor', ID, 'path', ['LConn','RConn'], 'Both')
+        super().__init__('Varistor', ID, 'ee_lib/Passive/Varistor', ['LConn 1','RConn 1'], 'Both')
         if prm:
             if prm not in ['linear', 'power-law']:
                 raise ValueError("The 'prm' must be either 'linear' or 'power-law'")
@@ -356,17 +530,44 @@ class Varistor(ElectricalElement):
             self.rUpturn = float(rUpturn)
             self.rLeak = float(rLeak)
 
-
+    @property
+    def parameter(self):
+        if self.prm == 'linear':
+            parameters = {
+                'prm': '1',
+                'vclamp': self.vclamp,
+                'roff': self.roff,
+                'ron': self.ron
+            }
+        elif self.prm == 'power-law':
+            parameters = {
+                'prm': '2',
+                'vln': self.vln,
+                'vnu': self.vnu,
+                'alphaNormal': self.alphaNormal,
+                'rUpturn': self.rUpturn,
+                'rLeak': self.rLeak
+            }
+        return parameters
 
 
 
 @gin.configurable()
 class Diode(ElectricalElement):
     def __init__(self, ID:int=0, forwardV:float=0.5, onR:float=0.01, breakV:float=500):
-        super().__init__('Diode', ID, 'path', ['LConn1','RConn1'], 'AC')
+        super().__init__('Diode', ID, 'ee_lib/Semiconductors & Converters/Diode', ['LConn 1','RConn 1'], 'AC')
         self.forwardV = float(forwardV)
         self.onR = float(onR)
         self.breakV = float(breakV)
+
+    @property
+    def parameter(self):
+        parameters = {
+            'Vf': self.forwardV,
+            'Ron': self.onR,
+            'BV': self.breakV
+        }
+        return parameters
 
 #%%
 ###################################
