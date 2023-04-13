@@ -11,7 +11,7 @@ class SimulinkInterface:
     def input_subsystem(self, eng, model_name, subsystem):
         pass
 
-    def input_components(self):
+    def input_components(self, eng, model_name, component):
         pass
 
 class SystemSimulinkAdapter(SimulinkInterface):
@@ -41,6 +41,17 @@ class SystemSimulinkAdapter(SimulinkInterface):
                 new_input_list.append(new_position)
         return new_input_list
 
+    def input_components(self, eng, model_name, component_list):
+        positions = [[100, 100, 130, 130]] * len(component_list)
+        positions = self.make_positions(positions)
+        for index, component in enumerate(component_list):
+            eng.add_block(component.directory, f'{model_name}/{component.name}_{component.ID}', nargout=0)
+            position_matlab = matlab.double(positions[index])
+            eng.set_param(f'{model_name}/{component.name}_{component.ID}', 'Position', position_matlab, nargout=0)
+            for param_name, param_value in component.parameter.items():
+                param_value_str = str(param_value) if not isinstance(param_value, str) else param_value
+                eng.set_param(f'{model_name}/{component.name}_{component.ID}', param_name, param_value_str,
+                              nargout=0)
     def input_subsystem(self, eng, model_name, subsystem):
         # Add a subsystem to the Simulink model
         subsystem_path = f'{model_name}/{subsystem.name}_{subsystem.ID}_{subsystem.subsystem_type}'
@@ -65,5 +76,5 @@ class SystemSimulinkAdapter(SimulinkInterface):
     def input_connections(self):
         pass
 
-    def input_components(self):
-        pass
+
+
