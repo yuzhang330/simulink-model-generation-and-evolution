@@ -159,7 +159,6 @@ class DCComponentFactory(ElectriaclComponentFactory):
         else:
             return self.random_component(ElectricalElement, 'DC', seed=seed)
 
-
     def create_actuator(self, name=None, seed=None, pole_and_throw=None, randomattr=True):
         if name:
             return self.create_component(name, ElectricalActuator, current_type='DC', seed=seed, randomattr=randomattr)
@@ -192,6 +191,9 @@ class DCComponentFactory(ElectriaclComponentFactory):
 
         else:
             return self.random_component(ElectricalActuator, 'DC', seed=seed)
+
+    def create_mission_object(self, name, seed=None, randomattr=True):
+        return self.create_component(name, Mission, current_type='DC', seed=seed, randomattr=randomattr)
 #%%
 # gin.parse_config_file('my_config.gin')
 # a = DCComponentFactory()

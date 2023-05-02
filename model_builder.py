@@ -85,7 +85,6 @@ class DCBuilder(ElectricalModelBuilder):
                     subsystem.add_connection((port.replace('-', ''), out_port[0].get_port_info()[0]))
         return subsystem
 
-
     def create_source_subsystem(self, type, max_num_component=3, seed=None, battery_exsist=None):
         if seed:
             random.seed(seed)
@@ -182,13 +181,11 @@ class DCBuilder(ElectricalModelBuilder):
                 subsystem_connected = self.series_connect(subsystem, comp, in_port, out_port)
             if type_b == 'p':
                 subsystem_connected = self.parallel_connect(subsystem, comp, in_port, out_port)
-        subsystem_connected.inport = [port_class.ID for port_class in subsystem.component_list if
+        subsystem_connected.inport = [f'{port_class.name}_{port_class.ID}' for port_class in subsystem.component_list if
                                       port_class.name == 'ConnectionPort' and port_class.port_type == 'Inport']
-        subsystem_connected.outport = [port_class.ID for port_class in subsystem.component_list if
+        subsystem_connected.outport = [f'{port_class.name}_{port_class.ID}' for port_class in subsystem.component_list if
                                        port_class.name == 'ConnectionPort' and port_class.port_type == 'Outport']
         return subsystem_connected
-
-
 
     def create_element_subsystem(self, max_num_component=5, seed=None):
         subsystem = Subsystem(subsystem_type='element')
@@ -265,11 +262,12 @@ class DCBuilder(ElectricalModelBuilder):
             item1 = random.choice(in_out_ports_copy)
             subsystem.add_connection((item1, item2))
             in_out_ports_copy.remove(item1)
-        subsystem.inport = [port_class.ID for port_class in subsystem.component_list if
+        subsystem.inport = [f'{port_class.name}_{port_class.ID}' for port_class in subsystem.component_list if
                                       port_class.name == 'ConnectionPort' and port_class.port_type == 'Inport']
-        subsystem.outport = [port_class.ID for port_class in subsystem.component_list if
+        subsystem.outport = [f'{port_class.name}_{port_class.ID}' for port_class in subsystem.component_list if
                                        port_class.name == 'ConnectionPort' and port_class.port_type == 'Outport']
         return subsystem
+
     def create_actuator_subsystem(self, seed=None, pole_and_throw=None):
         subsystem = Subsystem(subsystem_type='switch')
         if seed:
@@ -310,11 +308,12 @@ class DCBuilder(ElectricalModelBuilder):
                 if 'RConn' in port:
                     subsystem.add_connection((port, out_port[index_out].get_port_info()[0]))
                     index_out += 1
-        subsystem.inport = [port_class.ID for port_class in subsystem.component_list if
+        subsystem.inport = [f'{port_class.name}_{port_class.ID}' for port_class in subsystem.component_list if
                                       port_class.name == 'ConnectionPort' and port_class.port_type == 'Inport']
-        subsystem.outport = [port_class.ID for port_class in subsystem.component_list if
+        subsystem.outport = [f'{port_class.name}_{port_class.ID}' for port_class in subsystem.component_list if
                                        port_class.name == 'ConnectionPort' and port_class.port_type == 'Outport']
         return subsystem
+
     def create_sensor_subsystem(self, max_num_component=3, seed=None):
         if seed:
             random.seed(seed)
@@ -326,7 +325,7 @@ class DCBuilder(ElectricalModelBuilder):
             scope = self.component_factory.create_utilities('Scope')
             to_workspace = self.component_factory.create_workspace('ToWorkspace')
             subsystem.add_component(component, converter, scope, to_workspace)
-        #connect with ports
+        #connect with scope ports
         sensors = [sensor for sensor in subsystem.component_list if sensor.component_type == 'Sensor']
         voltage_sensors = [sensor for sensor in subsystem.component_list if sensor.name == 'VoltageSensor']
         current_sensors = [sensor for sensor in subsystem.component_list if sensor.name == 'CurrentSensor']
@@ -341,6 +340,7 @@ class DCBuilder(ElectricalModelBuilder):
                                              (converters[index_scope].get_port_info()[1], scopes[index_scope].get_port_info()[0]),
                                              (converters[index_scope].get_port_info()[1], to_workspace[index_scope].get_port_info()[0]))
                     index_scope += 1
+        #add in and out port
         inport = self.component_factory.create_port('Inport', type='electrical')
         outport = self.component_factory.create_port('Outport', type='electrical')
         subsystem.add_component(inport, outport)
@@ -364,11 +364,69 @@ class DCBuilder(ElectricalModelBuilder):
         elif current_sensors:
             subsystem.subsystem_type = 'sensor_current'
             subsystem = self.series_connect(subsystem, current_sensors, in_port, out_port)
-        subsystem.inport = [port_class.ID for port_class in subsystem.component_list if
+        subsystem.inport = [f'{port_class.name}_{port_class.ID}' for port_class in subsystem.component_list if
                                       port_class.name == 'ConnectionPort' and port_class.port_type == 'Inport']
-        subsystem.outport = [port_class.ID for port_class in subsystem.component_list if
+        subsystem.outport = [f'{port_class.name}_{port_class.ID}' for port_class in subsystem.component_list if
                                        port_class.name == 'ConnectionPort' and port_class.port_type == 'Outport']
         return subsystem
+
+    def create_mission_subsystem(self, name=None, seed=None):
+        if seed:
+            random.seed(seed)
+        if not name:
+            name = random.choice(['IncandescentLamp'])
+        subsystem = Subsystem(subsystem_type='mission')
+        mission = self.component_factory.create_mission_object(name)
+        subsystem.add_component(mission)
+        if name == 'IncandescentLamp':
+            for sensor_name in ['VoltageSensor', 'CurrentSensor']:
+                sensor = self.component_factory.create_sensor(sensor_name)
+                converter = self.component_factory.create_utilities('PSSimuConv')
+                scope = self.component_factory.create_utilities('Scope')
+                to_workspace = self.component_factory.create_workspace('ToWorkspace')
+                subsystem.add_component(sensor, converter, scope, to_workspace)
+            #add sensor
+            sensors = [sensor for sensor in subsystem.component_list if sensor.component_type == 'Sensor']
+            mission = [comp for comp in subsystem.component_list if comp.name == name]
+            voltage_sensors = [sensor for sensor in subsystem.component_list if sensor.name == 'VoltageSensor']
+            current_sensors = [sensor for sensor in subsystem.component_list if sensor.name == 'CurrentSensor']
+            converters = [converter for converter in subsystem.component_list if converter.name == 'PSSimuConv']
+            to_workspace = [wp for wp in subsystem.component_list if wp.component_type == 'Workspace']
+            scopes = [scope for scope in subsystem.component_list if scope.name == 'Scope']
+            index_scope = 0
+            for sensor in sensors:
+                for port in sensor.get_port_info():
+                    if 'scope' in port:
+                        subsystem.add_connection(
+                            (port.replace('scope', ''), converters[index_scope].get_port_info()[0]),
+                            (converters[index_scope].get_port_info()[1], scopes[index_scope].get_port_info()[0]),
+                            (converters[index_scope].get_port_info()[1], to_workspace[index_scope].get_port_info()[0]))
+                        index_scope += 1
+            #add ports
+            inport = self.component_factory.create_port('Inport', type='electrical')
+            outport = self.component_factory.create_port('Outport', type='electrical')
+            subsystem.add_component(inport, outport)
+            in_port = [port_class for port_class in subsystem.component_list if
+                       port_class.name == 'ConnectionPort' and port_class.port_type == 'Inport']
+            out_port = [port_class for port_class in subsystem.component_list if
+                        port_class.name == 'ConnectionPort' and port_class.port_type == 'Outport']
+            #connect
+            for port in current_sensors[0].get_port_info():
+                if '+' in port:
+                    subsystem.add_connection((port.replace('+', ''), in_port[0].get_port_info()[0]))
+                if '-' in port:
+                    for comp in [mission[0], voltage_sensors[0]]:
+                        for port_1 in comp.get_port_info():
+                            if '+' in port_1:
+                                subsystem.add_connection((port_1.replace('+', ''), port.replace('-', '')))
+                            if '-' in port_1:
+                                subsystem.add_connection((port_1.replace('-', ''), out_port[0].get_port_info()[0]))
+        subsystem.inport = [f'{port_class.name}_{port_class.ID}' for port_class in subsystem.component_list if
+                                      port_class.name == 'ConnectionPort' and port_class.port_type == 'Inport']
+        subsystem.outport = [f'{port_class.name}_{port_class.ID}' for port_class in subsystem.component_list if
+                                       port_class.name == 'ConnectionPort' and port_class.port_type == 'Outport']
+        return subsystem
+
 
     def build_base_circuit(self, element_sys, soursys):
         subset_size = random.randint(1, len(element_sys))
@@ -393,7 +451,6 @@ class DCBuilder(ElectricalModelBuilder):
                 self._model.add_connection((inport, port_2))
             for outport in subsys.outport_info:
                 self._model.add_connection((outport, port_1))
-
 
     def add_series_subsys(self, subsys, type, exclude_paths=None, connections=None):
         if type == 'element':
@@ -439,8 +496,10 @@ class DCBuilder(ElectricalModelBuilder):
                 self.add_series_connections(subsys, base_port, port_1, port_2)
         if type == 'sensor':
             connection = random.choice(connections)
+            while connection not in self._model.connections:
+                connection = random.choice(connections)
             self._model.connections.remove(connection)
-            connections.remove(connection)
+            # connections.remove(connection)
             if 'source' in connection:
                 s_port = [x for x in connection if 'source' in x]
                 remain_port = [x for x in connection if x != s_port[0]]
@@ -498,14 +557,13 @@ class DCBuilder(ElectricalModelBuilder):
                 port_1 = random.choice(connection_1)
             for inport in subsys.inport_info:
                 self._model.add_connection((inport, port_1))
-            exclude_ports = self._model.extract_elements([port_1])
+            exclude_ports = self._model.extract_elements([port_1], connections=connections_sensor)
             port_2 = 'p'
             while 'outport' not in port_2 or port_2 in exclude_ports[0]:
                 connection = random.choice(connections_sensor)
                 port_2 = random.choice(connection)
             for outport in subsys.outport_info:
                 self._model.add_connection((outport, port_2))
-
 
     def add_element_subsys(self, element_sys):
         while element_sys:
@@ -521,14 +579,44 @@ class DCBuilder(ElectricalModelBuilder):
                 for elesys in subset:
                     self.add_parallel_subsys(elesys, 'element')
 
+    def add_mission_subsys(self, mission_sys):
+        if len(mission_sys) == 1:
+            type = random.choice(['s', 'p'])
+            if type == 's':
+                self.add_series_subsys(mission_sys[0], 'element')
+            if type == 'p':
+                self.add_parallel_subsys(mission_sys[0], 'element')
+        else:
+            while mission_sys:
+                subset_size = random.randint(1, len(mission_sys))
+                subset = random.sample(mission_sys, subset_size)
+                mission_sys = [x for x in mission_sys if x not in subset]
+                series_mission_size = random.randint(1, len(subset))
+                series_mission = random.sample(subset, series_mission_size)
+                subset = [x for x in subset if x not in series_mission]
+                for missionsys in series_mission:
+                    self.add_series_subsys(missionsys, 'element')
+                if subset:
+                    for missionsys in subset:
+                        self.add_parallel_subsys(missionsys, 'element')
+
     def check_circuit_source(self, exclude_paths, exclude_ports):
         type_p_in = 0
         type_p_out = 0
         type_s = 0
+        involved_num = []
         for connection in self._model.connections:
+            for i, path in enumerate(exclude_paths):
+                involved_path = 0
+                for sublist in path:
+                    if connection in sublist:
+                        involved_path += 1
+                if involved_path > 0:
+                    involved_num.append(involved_path)
             length_path = [len(path) for path in exclude_paths if any(connection in sublist for sublist in path)]
+            empty_path = [a - b for a, b in zip(length_path, involved_num)]
             if all(connection not in sublist for path in exclude_paths for sublist in path) or all(
-                    value > 1 for value in length_path):
+                    value > 1 for value in empty_path):
                 type_s += 1
             for port in connection:
                 if all(port not in sublist for sublist in exclude_ports):
@@ -553,6 +641,7 @@ class DCBuilder(ElectricalModelBuilder):
         for soursys in source_sys[1:]:
             type = self.check_circuit_source(exclude_paths, exclude_ports)
             if type == 'full':
+                self._model.subsystem_list.remove(soursys)
                 continue
             if type == 'p':
                 self.add_parallel_subsys(soursys, 'source', exclude_ports=exclude_ports, source_sys=source_sys)
@@ -565,12 +654,14 @@ class DCBuilder(ElectricalModelBuilder):
 
     def add_main_sensor(self, subsys, connections):
         connection = random.choice(connections)
+        while connection not in self._model.connections:
+            connection = random.choice(connections)
         port = random.choice(connection)
         all_related_connections = self._model.filter_connections([port])
         i = 0
         for connection in all_related_connections[0]:
             self._model.connections.remove(connection)
-            connections.remove(connection)
+            # connections.remove(connection)
             remain_port = [x for x in connection if x != port]
             if 'source' in port:
                 if 'inport' in port:
@@ -605,9 +696,11 @@ class DCBuilder(ElectricalModelBuilder):
 
     def add_sensor_subsys(self, sensor_sys):
         connections = self._model.connections.copy()
+        connections_sensor = self._model.connections.copy()
         for sensys in sensor_sys:
+            # connections = self._model.connections.copy()
             if sensys.subsystem_type == 'sensor_voltage':
-                self.add_parallel_subsys(sensys, 'sensor', connections_sensor=connections)
+                self.add_parallel_subsys(sensys, 'sensor', connections_sensor=connections_sensor)
             if sensys.subsystem_type == 'sensor_current':
                 type = random.choice(['branch', 'main'])
                 if type == 'branch':
@@ -617,14 +710,14 @@ class DCBuilder(ElectricalModelBuilder):
             if sensys.subsystem_type == 'sensor_both':
                 connection = random.choice(connections)
                 port = random.choice(connection)
-                while 'inport' not in port:
+                while 'inport' not in port or connection not in self._model.connections:
                     connection = random.choice(connections)
                     port = random.choice(connection)
                 all_related_connections = self._model.filter_connections([port])
                 self._model.add_connection((sensys.inport_info[1], port))
                 for connection in all_related_connections[0]:
                     self._model.connections.remove(connection)
-                    connections.remove(connection)
+                    # connections.remove(connection)
                     remain_port = [x for x in connection if x != port]
                     self._model.add_connection((sensys.inport_info[0], remain_port[0]))
                 # take the measured subsystem
@@ -643,6 +736,8 @@ class DCBuilder(ElectricalModelBuilder):
             port = random.choice(connection)
             all_related_connections = self._model.filter_connections([port])
             num_connections = random.randint(1, len(all_related_connections[0]))
+            while num_connections > 8:
+                num_connections = random.randint(1, len(all_related_connections[0]))
             all_related_connections = random.sample(all_related_connections[0], num_connections)
             switchsys = self.create_actuator_subsystem(seed=seed, pole_and_throw=[num_pole, num_connections])
             self._model.add_subsystem(switchsys)
@@ -655,30 +750,46 @@ class DCBuilder(ElectricalModelBuilder):
                 self._model.add_connection((switchsys.outport_info[i], remain_port[0]))
                 i += 1
 
-    def build_subsystem(self, max_num_source=5, max_num_sensor=3, max_num_acuator=2, max_num_element=10, seed=None):
+    def build_subsystem(self, max_num_source=3, max_num_sensor=2, max_num_acuator=2, max_num_element=5,
+                        max_num_mission=1, mission_name=None, seed=None):
+    # def build_subsystem(self, max_num_source=5, max_num_sensor=3, max_num_acuator=2, max_num_element=10, max_num_mission=1, mission_name=None, seed=None):
         if seed:
             random.seed(seed)
         num_sensors = random.randint(1, max_num_sensor)
         num_elements = random.randint(1, max_num_element)
         num_sources = random.randint(1, max_num_source)
         num_actuators = random.randint(1, max_num_acuator)
+        num_mission = random.randint(1, max_num_mission)
         for i in range(num_sources):
             type = random.choice(['voltage', 'current', 'battery'])
-            subsys = self.create_source_subsystem(type=type,seed=seed)
+            subsys = self.create_source_subsystem(type=type, seed=seed)
             self._model.add_subsystem(subsys)
         for i in range(num_elements):
             subsys = self.create_element_subsystem(seed=seed)
             self._model.add_subsystem(subsys)
+        num_current_sensor = 0
         for i in range(num_sensors):
             subsys = self.create_sensor_subsystem(seed=seed)
-            self._model.add_subsystem(subsys)
+            if subsys.subsystem_type in ['sensor_current', 'sensor_both'] and num_current_sensor < num_elements:
+                num_current_sensor += 1
+                self._model.add_subsystem(subsys)
+            else:
+                while subsys.subsystem_type in ['sensor_current', 'sensor_both']:
+                    subsys = self.create_sensor_subsystem(seed=seed)
+                self._model.add_subsystem(subsys)
+        for i in range(num_mission):
+            mission_subsys = self.create_mission_subsystem(name=mission_name, seed=seed)
+            self._model.add_subsystem(mission_subsys)
         sensor_sys = [subsys for subsys in self._model.subsystem_list if 'sensor' in subsys.subsystem_type]
         element_sys = [subsys for subsys in self._model.subsystem_list if subsys.subsystem_type == 'element']
+        mission_sys = [subsys for subsys in self._model.subsystem_list if subsys.subsystem_type == 'mission']
         source_sys = [subsys for subsys in self._model.subsystem_list if 'source' in subsys.subsystem_type]
         # #biuld base circuit
         element_sys = self.build_base_circuit(element_sys, source_sys[0])
         # add elements
         self.add_element_subsys(element_sys)
+        #add mission
+        self.add_mission_subsys(mission_sys)
         #add source
         self.add_source_subsys(source_sys)
         #add sensor
@@ -686,8 +797,39 @@ class DCBuilder(ElectricalModelBuilder):
         #add switch
         self.add_switch_subsys(num_actuators, seed)
 
-    def build_component(self):
-        print("Building DC component")
+    def random_single_connect(self, component):
+        connection = random.choice(self._model.connections)
+        port = random.choice(connection)
+        self._model.add_connection((port, component.get_port_info()[0]))
+
+    def set_workspace(self):
+        i = 0
+        for component in self._model.component_list:
+            if component.name == 'ToWorkspace':
+                component.variable_name = f"simout_{i}"
+                i = i + 1
+        for subsys in self._model.subsystem_list:
+            for component in subsys.component_list:
+                if component.name == 'ToWorkspace':
+                    component.variable_name = f"simout_{i}"
+                    i = i + 1
+
+    def build_component(self, seed=None):
+        if seed:
+            random.seed(seed)
+        solver = self.component_factory.create_utilities('Solver')
+        reference = self.component_factory.create_utilities('Reference')
+        self._model.add_component(solver, reference)
+        self.random_single_connect(reference)
+        self.random_single_connect(solver)
+
+
+    def build_system(self, seed=None):
+        if seed:
+            random.seed(seed)
+        self.build_subsystem()
+        self.build_component()
+        self.set_workspace()
 
     def build_connection(self):
         print("Building DC connection")

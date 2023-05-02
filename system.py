@@ -1,4 +1,5 @@
 from components import *
+
 class Container:
     def __init__(self, inport, outport):
         self.inport = inport
@@ -12,7 +13,7 @@ class Container:
 
 
 class Subsystem(Container):
-    def __init__(self, inport=[], outport=[], name='subsytem', ID=0, subsystem_type=None):
+    def __init__(self, inport=[], outport=[], name='subsystem', ID=0, subsystem_type=None):
         super().__init__(inport, outport)
         self.component_list = []
         self.connections = []
@@ -54,6 +55,15 @@ class Subsystem(Container):
         for port in self.outport:
             port_name = f"{self.name}_{self.subsystem_type }_id{self.ID}_outport{port}"
             self.outport_info.append(port_name)
+
+    def change_component_paramter(self, parameter_name, parameter_value, component_name, component_id):
+        for component in self.component_list:
+            if component.name == component_name and component.ID == component_id:
+                new_component = component
+                self.component_list.remove(component)
+                if hasattr(new_component, parameter_name):
+                    setattr(new_component, parameter_name, parameter_value)
+                self.component_list.append(new_component)
 
     def list_played_components(self):
         played_ports = [port.replace('signal', '') for instance in self.component_list for port in instance.get_port_info() if 'signal' in port]
@@ -114,17 +124,17 @@ class Subsystem(Container):
             if not found:
                 raise ValueError("There is no such new signal component.")
 
-    def change_workspace(self, id, new_data):
+    def change_workspace(self, id, variable_name):
         found = False
         for instance in self.component_list:
             if instance.name == 'FromWorkspace' and instance.ID == id:
-                instance.data = new_data
+                instance.variable_name = variable_name
                 found = True
         if not found:
             raise ValueError("There is no such FromWorkspace component.")
 
 class System(Container):
-    def __init__(self, inport=[], outport=[], solver='ode', stop_time=1000):
+    def __init__(self, inport=[], outport=[], solver='ode45', stop_time=100):
         super().__init__(inport, outport)
         self.component_list = []
         self.subsystem_list = []
@@ -147,7 +157,7 @@ class System(Container):
     def add_subsystem(self, *subsystems):
         for subsystem in subsystems:
             if isinstance(subsystem, Subsystem):
-                name_count = sum(1 for s in self.subsystem_list)
+                name_count = sum(1 for s in self.subsystem_list if s.subsystem_type == subsystem.subsystem_type)
                 if name_count > 0:
                     existing_ids = [sub.ID for sub in self.subsystem_list]
                     max_id = max(existing_ids)
@@ -173,9 +183,32 @@ class System(Container):
     def list_connections(self):
         return [f"{src} -> {dest}" for (src, dest) in self.connections]
 
+    def change_component_paramter(self, parameter_name, parameter_value, component_name, component_id,
+                                  subsystem_type=None, subsystem_id=None):
+        if subsystem_type and subsystem_id is not None:
+            for subsys in self.subsystem_list:
+                if subsys.subsystem_type == subsystem_type and subsys.ID == subsystem_id:
+                    new_subsys = subsys
+                    self.subsystem_list.remove(subsys)
+                    for component in new_subsys.component_list:
+                        if component.name == component_name and component.ID == component_id:
+                            new_component = component
+                            new_subsys.component_list.remove(component)
+                            if hasattr(new_component, parameter_name):
+                                setattr(new_component, parameter_name, parameter_value)
+                            new_subsys.component_list.append(new_component)
+                    self.subsystem_list.append(new_subsys)
+        else:
+            for component in self.component_list:
+                if component.name == component_name and component.ID == component_id:
+                    new_component = component
+                    self.component_list.remove(component)
+                    if hasattr(new_component, parameter_name):
+                        setattr(new_component, parameter_name, parameter_value)
+                    self.component_list.append(new_component)
+
     def list_played_components(self):
         played_ports = [port.replace('signal', '') for instance in self.component_list for port in instance.get_port_info() if 'signal' in port]
-        print(played_ports)
         adjacent_ports = []
         for element in played_ports:
             for tup in self.connections:
@@ -183,7 +216,6 @@ class System(Container):
                     index = tup.index(element)
                     adjacent_ports.append(tup[1 - index])
                     break
-        print(adjacent_ports)
         connections = []
         for element in adjacent_ports:
             element = '_'.join(element.split('_', 2)[:2])
@@ -207,25 +239,38 @@ class System(Container):
             played_components.append(played_couple)
         return played_components
 
+    def list_all_played_component(self):
+        played_dic = {}
+        for subsys in self.subsystem_list:
+            played_dic[f'subsystem_{subsys.subsystem_type}_{subsys.ID}'] = subsys.list_played_components()
+        played_dic['system'] = self.list_played_components()
+        return played_dic
+
+
     def remove_after_last_underscore(self, s):
         last_underscore_index = s.rfind('_')
         if last_underscore_index != -1:
             return s[:last_underscore_index]
         return s
 
+    def remove_substring_after_id(self, input_string):
+        id_index = input_string.find('id')
+        underscore_index = input_string.find('_', id_index)
+        return input_string[:underscore_index]
+
     def find_paths(self, start, end):
         def path(visited, visited_nodes, current):
             if current == end:
                 result.append(visited)
                 return
-            current_new = self.remove_after_last_underscore(current)
+            current_new = self.remove_substring_after_id(current)
             for pair in self.connections:
-                new_pair = (self.remove_after_last_underscore(pair[0]), self.remove_after_last_underscore(pair[1]))
+                new_pair = (self.remove_substring_after_id(pair[0]), self.remove_substring_after_id(pair[1]))
                 if current_new in new_pair:
                     old_node = pair[0] if new_pair[0] == current_new else pair[1]
                     if old_node != end:
                         next_node = pair[0] if new_pair[1] == current_new else pair[1]
-                        next_node_new = self.remove_after_last_underscore(next_node)
+                        next_node_new = self.remove_substring_after_id(next_node)
                         if pair not in visited and next_node_new not in visited_nodes:
                             path(visited + [pair], visited_nodes | {next_node_new}, next_node)
 
@@ -233,14 +278,18 @@ class System(Container):
         path([], {start}, start)
         return result
 
-    def extract_elements(self, elements):
+    def extract_elements(self, elements, connections=None):
+        if connections:
+            connection_list = connections
+        else:
+            connection_list = self.connections
         result = [[] for _ in range(len(elements))]
         visited = set()
-
         def chain(start, index):
             visited.add(start)
             result[index].append(start)
-            for t in self.connections:
+            # for t in self.connections:
+            for t in connection_list:
                 if start in t:
                     next_node = t[0] if t[1] == start else t[1]
                     if next_node not in visited:
