@@ -115,9 +115,13 @@ class SystemSimulinkAdapter(SimulinkInterface):
             position_matlab = matlab.double(positions[index])
             eng.set_param(f'{subsystem_path}/{component.name}_{component.ID}', 'Position', position_matlab, nargout=0)
             for param_name, param_value in component.parameter.items():
-                param_value_str = str(param_value) if not isinstance(param_value, str) else param_value
-                eng.set_param(f'{subsystem_path}/{component.name}_{component.ID}', param_name, param_value_str,
-                              nargout=0)
+                if param_name == 'Function':
+                    fcn_name = eng.get_param(f'{subsystem_path}/{component.name}_{component.ID}', 'MATLABFunctionConfiguration')
+                    eng.setfield(fcn_name, 'FunctionScript', param_value, nargout=0)
+                else:
+                    param_value_str = str(param_value) if not isinstance(param_value, str) else param_value
+                    eng.set_param(f'{subsystem_path}/{component.name}_{component.ID}', param_name, param_value_str,
+                                  nargout=0)
             if component.name == 'FromWorkspace':
                 component.variable_name = f"simin_{component.ID}_{subsystem.subsystem_type}_{subsystem.ID}"
                 time_values = matlab.double([0])

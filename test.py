@@ -193,58 +193,176 @@ def find_paths(tuples_list, start, end):
     path([], start)
     return result
 
-tuples_list = [('a', 'b_1_1_in'), ('c', 'b_1_1_out'), ('c', 'd'), ('c','e'),('e', 'd'), ('c', 'f'), ('d', 'g'), ('h', 'i'), ('a', 'k'), ('k', 'l'), ('k', 'e')]
+# tuples_list = [('a', 'b'), ('c', 'b'), ('c', 'a'), ('a','e'),('e', 'd'), ('d', 'a'), ('a', 'h'), ('i', 'k'), ('i', 'a')]
+tuples_list = [('a', 'b'), ('c', 'b'), ('c', 'a'), ('b','e')]
 start_element = 'a'
 end_element = 'e'
 result = find_paths(tuples_list, start_element, end_element)
 print(result)
 #%%
-def extract_elements(tuples, elements):
-    result = []
-    for element in elements:
-        chain = [element]
-        print(chain)
-        for t in tuples:
-            for p in chain:
-                if p in t:
-                    next_p = t[0] if t[1] == p else t[1]
-                    chain.append(next_p)
-        result.append(chain)
+def extract_elements(list, elements):
+    result = [[] for _ in range(len(elements))]
+    visited = set()
 
+    def chain(start, index):
+        visited.add(start)
+        result[index].append(start)
+        for t in list:
+            if start in t:
+                next_node = t[0] if t[1] == start else t[1]
+                if next_node not in visited:
+                    print('port')
+                    chain(next_node, index)
+
+    for i, element in enumerate(elements):
+        chain(element, i)
+    print('portre')
     return result
 
 
 input_tuples = [('a', 'b'), ('c', 'b'), ('c', 'd'), ('m', 'd'), ('c', 'f'), ('h', 'i'), ('a', 'k'), ('l', 'e')]
-input_elements = ['a', 'e']
+input_elements = ['v', 'e']
 output = extract_elements(input_tuples, input_elements)
 print(output)
 #%%
-def remove_after_third_underscore(s):
-    count = 0
-    for i, char in enumerate(s):
-        if char == '_':
-            count += 1
-            if count == 3:
-                return s[:i]
+def remove_after_last_underscore(s):
+    last_underscore_index = s.rfind('_')
+    if last_underscore_index != -1:
+        return s[:last_underscore_index]
     return s
 def find_paths(tuples_list, start, end):
-    def path(visited, current):
+    def path(visited, visited_nodes, current):
         if current == end:
             result.append(visited)
             return
 
         for pair in tuples_list:
-            new_pair = (remove_after_third_underscore(pair[0]), remove_after_third_underscore(pair[1]))
-            if current in new_pair:
-                next_node = new_pair[0] if new_pair[1] == current else new_pair[1]
-                if pair not in visited:
-                    path(visited + [pair], next_node)
+            if current in pair:
+                next_node = pair[0] if pair[1] == current else pair[1]
+                if pair not in visited and next_node not in visited_nodes:
+                    path(visited + [pair], visited_nodes | {next_node}, next_node)
 
     result = []
-    path([], start)
+    path([], {start}, start)
     return result
-tuples_list = [('a', 'b_1_1_in'), ('c', 'b_1_1_out'), ('c', 'd'), ('c','e'),('e', 'd'), ('c', 'f'), ('d', 'g'), ('h', 'i'), ('a', 'k'), ('k', 'l'), ('k', 'e')]
-start_element = 'a'
-end_element = 'e'
-result = find_paths(tuples_list, start_element, end_element)
+
+
+def find_pathes(tuples_list,  start, end):
+    def path(visited,visited_nodes, current):
+        if current == end:
+            result.append(visited)
+            return
+        current_new = remove_after_last_underscore(current)
+        for pair in tuples_list:
+            new_pair = (remove_after_last_underscore(pair[0]), remove_after_last_underscore(pair[1]))
+            if current_new in new_pair:
+                old_node = pair[0] if new_pair[0] == current_new else pair[1]
+                if old_node != end:
+                    next_node = pair[0] if new_pair[1] == current_new else pair[1]
+                    next_node_new = remove_after_last_underscore(next_node)
+                    if pair not in visited and next_node_new not in visited_nodes:
+                        path(visited + [pair],visited_nodes | {next_node_new}, next_node)
+
+    result = []
+    path([],{start}, start)
+    return result
+
+
+tuples_list = [
+    ('source_in', 'resistorA_in'),
+    ('resistorA_out', 'resistorB_in'),
+    ('resistorB_out', 'source_out'),
+    ('source_in', 'resistorC_in'),
+    ('resistorC_out', 'source_out')
+]
+
+start = 'resistorA_in'
+end = 'resistorA_out'
+paths = find_pathes(tuples_list, start, end)
+print(paths)
+#%%
+i = [1,2,3,4,5]
+list = []
+def func(list):
+    if len(list) < 2:
+        print(list)
+for n in i:
+    func(list)
+    list.append(n)
+#%%
+input = [[100,100,130,130]]*10
+
+def divide_odd_elements(input_list):
+    sub_lists = []
+    start_index = 0
+    odd_count = 1
+
+    while start_index < len(input_list):
+        end_index = start_index + odd_count
+        sub_list = input_list[start_index:end_index]
+        sub_lists.append(sub_list)
+        start_index = end_index
+        odd_count += 2
+
+    return sub_lists
+
+# Example usage:
+result = divide_odd_elements(input)
 print(result)
+
+#%%
+def transform_list(input_list):
+    sub_lists = []
+    start_index = 0
+    odd_count = 1
+
+    while start_index < len(input_list):
+        end_index = start_index + odd_count
+        sub_list = input_list[start_index:end_index]
+        sub_lists.append(sub_list)
+        start_index = end_index
+        odd_count += 2
+
+    new_input_list = []
+    for index, sublist in enumerate(sub_lists):
+        for subindex, position in enumerate(sublist):
+            new_position = [element + 50*index for element in position]
+            if subindex % 2 == 0:  # Even index (0-based)
+                new_position[0] = new_position[0] - (subindex // 2)*50
+                new_position[2] = new_position[0] + 30
+            else:  # Odd index (0-based)
+                new_position[1] = new_position[1] -((subindex + 1) // 2)*50
+                new_position[3] = new_position[1] + 30
+            new_input_list.append(new_position)
+
+
+    return new_input_list
+
+input = [[100,100,130,130]]*10
+a = transform_list(input)
+
+# Example usage:
+#%%
+def remove_substring_after_id(input_string):
+    id_index = input_string.find('id')
+    underscore_index = input_string.find('_', id_index)
+    return input_string[:underscore_index]
+
+input_string = "aaa_bbb_ccc_id55_dddd_cc"
+output = remove_substring_after_id(input_string)
+print(output)
+#%%
+def check_value(value):
+    # if it's not an integer, round it up
+    if not isinstance(value, int):
+        if value % 1 > 0:
+            value += 1
+        value = int(value)
+
+
+    # if it's even, add one
+    if value % 2 == 0:
+        value += 1
+
+    return value
+a = check_value(2.2)

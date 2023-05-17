@@ -101,6 +101,65 @@ class Mission(Component):
         super().__init__(name, ID, "Mission", directory, port)
         self.system_type = system_type
 
+@gin.configurable()
+class Logic(Component):
+    def __init__(self, name, ID, directory, port, system_type):
+        super().__init__(name, ID, "Logic", directory, port)
+        self.system_type = system_type
+
+#Logic
+class Comparator(Logic):
+    def __init__(self, ID:int=0):
+        super().__init__('Comparator', ID, 'simulink/Quick Insert/Logic and Bit Operations/Equal', ['IN1', 'IN2', 'OUT1'], 'Common')
+
+
+
+class Voter(Logic):
+    def __init__(self, ID:int=0):
+        super().__init__('Voter', ID, 'simulink/User-Defined Functions/MATLAB Function', ['IN1', 'OUT1'], 'Common')
+        self.voter = """function y = voter(u)
+                        u = u(~isnan(u));
+                        y = mode(u);
+                        end
+                        """
+    @property
+    def parameter(self):
+        parameters = {
+            'Function': self.voter
+        }
+        return parameters
+
+class Sparing(Logic):
+    def __init__(self, ID:int=0, n:int=1):
+        super().__init__('Sparing', ID, 'simulink/User-Defined Functions/MATLAB Function', ['IN1', 'IN2', 'OUT1'], 'Common')
+        self.n = n
+
+    @property
+    def parameter(self):
+        function = f"""function outputs = select(signals, error)
+
+                                num = size(signals, 1);
+                                selected = zeros({self.n}, size(signals, 2));
+
+                                counter = 0;
+                                for i = 1:num
+                                    if error(i) ~= 0 && counter < {self.n}
+                                        counter = counter + 1;
+                                        selected(counter, :) = signals(i, :);
+                                    end
+
+                                    if counter >= {self.n}
+                                        break;
+                                    end
+                                end
+
+                                outputs = selected; """
+        parameters = {
+            'Function': function
+        }
+        return parameters
+
+
 #Workspace
 class FromWorkspace(Workspace):
     def __init__(self, ID:int=0, variable_name='simin', sample_time:int=0):
@@ -173,9 +232,92 @@ class Reference(Utilities):
     def __init__(self, ID:int=0):
         super().__init__('Reference', ID, 'ee_lib/Connectors & References/Electrical Reference', ['LConn 1'], 'Both')
 
+class Mux(Utilities):
+    def __init__(self, ID:int=0, num_input:int=2):
+        super().__init__('Mux', ID, 'simulink/Commonly Used Blocks/Mux', [], 'Common')
+        self.num_input = num_input
+        for i in range(self.num_input):
+            self.port.append('IN' + str(i+1))
+        self.port.append('OUT1')
+
+    def set_input(self, num_input):
+        self.num_input = num_input
+        self.port.clear()
+        for i in range(self.num_input):
+            self.port.append('IN' + str(i + 1))
+        self.port.append('OUT1')
+
+    @property
+    def parameter(self):
+        parameters = {
+            'Inputs': self.num_input
+        }
+        return parameters
+
+class VectorConcatenate(Utilities):
+    def __init__(self, ID:int=0, num_input:int=2):
+        super().__init__('VectorConcatenate', ID, 'simulink/Commonly Used Blocks/Vector Concatenate', [], 'Common')
+        self.num_input = num_input
+        for i in range(self.num_input):
+            self.port.append('IN' + str(i+1))
+        self.port.append('OUT1')
+
+    def set_input(self, num_input):
+        self.num_input = num_input
+        self.port.clear()
+        for i in range(self.num_input):
+            self.port.append('IN' + str(i + 1))
+        self.port.append('OUT1')
+
+    @property
+    def parameter(self):
+        parameters = {
+            'NumInputs': self.num_input
+        }
+        return parameters
+
+
+class Demux(Utilities):
+    def __init__(self, ID:int=0, num_output:int=2):
+        super().__init__('Demux', ID, 'simulink/Commonly Used Blocks/Demux', ['IN1'], 'Common')
+        self.num_output = num_output
+        for i in range(self.num_output):
+            self.port.append('OUT' + str(i+1))
+
+    def set_output(self, num_output):
+        self.num_output = num_output
+        self.port.clear()
+        self.port.append('IN1')
+        for i in range(self.num_output):
+            self.port.append('OUT' + str(i + 1))
+
+    @property
+    def parameter(self):
+        parameters = {
+            'Outputs': self.num_output
+        }
+        return parameters
+
+class CommonSwitch(Utilities):
+    def __init__(self, ID:int=0, threshold:float=0):
+        super().__init__('CommonSwitch', ID, 'simulink/Commonly Used Blocks/Switch', ['IN1', 'IN2', 'IN3', 'OUT1'], 'Common')
+        self.threshold = threshold
+
+    @property
+    def parameter(self):
+        parameters = {
+            'Threshold': self.threshold
+        }
+        return parameters
+
+class UnitDelay(Utilities):
+    def __init__(self, ID:int=0):
+        super().__init__('UnitDelay', ID, 'simulink/Discrete/Unit Delay', ['IN1', 'OUT1'], 'Common')
+
+
 #Signal
 class Constant(Signal):
-    def __init__(self, ID:int=0, value:float=1):
+    def __init__(self, ID:int=0, value=1):
         super().__init__('Constant', ID, 'simulink/Sources/Constant', ['OUT1'], 'Common')
         self.value = float(value)
 
@@ -525,7 +667,7 @@ class Resistor(ElectricalElement):
 class Varistor(ElectricalElement):
     def __init__(self, ID:int=0, vclamp:float=260, roff:float=3e8, ron:float=1, vln:float=130, vnu:float=300, rLeak:float=3e8,
                  alphaNormal:float=45, rUpturn:float=0.07, prm=None):
-        super().__init__('Varistor', ID, 'ee_lib/Passive/Varistor', ['LConn 1','RConn 1'], 'Both')
+        super().__init__('Varistor', ID, 'ee_lib/Passive/Varistor', ['LConn 1', 'RConn 1'], 'Both')
         if prm:
             if prm not in ['linear', 'power-law']:
                 raise ValueError("The 'prm' must be either 'linear' or 'power-law'")
@@ -570,7 +712,7 @@ class Varistor(ElectricalElement):
 @gin.configurable()
 class Diode(ElectricalElement):
     def __init__(self, ID:int=0, forwardV:float=0.5, onR:float=0.01, breakV:float=500):
-        super().__init__('Diode', ID, 'ee_lib/Semiconductors & Converters/Diode', ['LConn 1','RConn 1'], 'AC')
+        super().__init__('Diode', ID, 'ee_lib/Semiconductors & Converters/Diode', ['LConn 1', 'RConn 1'], 'AC')
         self.forwardV = float(forwardV)
         self.onR = float(onR)
         self.breakV = float(breakV)

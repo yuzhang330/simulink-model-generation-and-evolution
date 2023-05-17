@@ -22,6 +22,7 @@ class Subsystem(Container):
         self.subsystem_type = subsystem_type
         self.inport_info = []
         self.outport_info = []
+        self.fault_tolerant = 0
 
     def add_component(self, *components):
         for component in components:
@@ -132,6 +133,13 @@ class Subsystem(Container):
                 found = True
         if not found:
             raise ValueError("There is no such FromWorkspace component.")
+
+    def filter_connections(self, port_list):
+        result = []
+        for element in port_list:
+            filter_connections = [t for t in self.connections if element in t]
+            result.append(filter_connections)
+        return result
 
 class System(Container):
     def __init__(self, inport=[], outport=[], solver='ode45', stop_time=100):

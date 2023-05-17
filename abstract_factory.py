@@ -97,6 +97,10 @@ class ElectriaclComponentFactory(AbstractComponentFactory):
     def create_workspace(self, name):
         return self.create_component(name, Workspace, randomattr=False)
 
+    @gin.configurable()
+    def create_logic(self, name):
+        return self.create_component(name, Logic, randomattr=False)
+
 @gin.configurable()
 class ACComponentFactory(ElectriaclComponentFactory):
 

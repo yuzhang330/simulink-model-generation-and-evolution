@@ -809,9 +809,10 @@ class DCBuilder(ElectricalModelBuilder):
                 component.variable_name = f"simout_{i}"
                 i = i + 1
         for subsys in self._model.subsystem_list:
+            i = 0
             for component in subsys.component_list:
                 if component.name == 'ToWorkspace':
-                    component.variable_name = f"simout_{i}"
+                    component.variable_name = f"{subsys.subsystem_type}_{subsys.ID}_simout_{i}"
                     i = i + 1
 
     def build_component(self, seed=None):
