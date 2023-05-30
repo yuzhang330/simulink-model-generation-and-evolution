@@ -69,7 +69,6 @@ class UpgraderDecorator(Upgrader):
                     if 'Upgrade' in comp.name:
                         for subsys_2 in self.wrappee.origin_sys.subsystem_list:
                             if subsys_2.subsystem_type == subsys_type and subsys_2.ID == subsys_id:
-                                print(1)
                                 self.wrappee.sys.subsystem_list[i] = copy.deepcopy(subsys_2)
                                 break
                         break

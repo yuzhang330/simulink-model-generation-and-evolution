@@ -152,7 +152,6 @@ class SystemSimulinkAdapter(SimulinkInterface):
         for index, component in enumerate(self.system.component_list):
             self.input_components(eng, model_name, component, positions[index+i])
         for connection in self.system.connections:
-            print(connection)
             self.input_connections(eng, connection, model_name, 'subsystem')
 
     def change_parameter(self, eng, model_name, parameter_name, parameter_value, component_name, component_id,
