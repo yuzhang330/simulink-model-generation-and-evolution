@@ -252,7 +252,6 @@ class ACBuilder(ElectricalModelBuilder):
         subsystem.add_component(component)
         switchs = [switch for switch in subsystem.component_list if switch.component_type == 'Actuator']
         for switch in switchs:
-            print(switch.take_port('LConn'))
             for i in range(len(switch.take_port('LConn')) - 1):
                 inport = self.component_factory.create_port('Inport', type='electrical')
                 subsystem.add_component(inport)
@@ -1007,7 +1006,6 @@ class DCBuilder(ElectricalModelBuilder):
         subsystem.add_component(component)
         switchs = [switch for switch in subsystem.component_list if switch.component_type == 'Actuator']
         for switch in switchs:
-            print(switch.take_port('LConn'))
             for i in range(len(switch.take_port('LConn')) - 1):
                 inport = self.component_factory.create_port('Inport', type='electrical')
                 subsystem.add_component(inport)

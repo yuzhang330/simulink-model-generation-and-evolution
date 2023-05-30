@@ -301,11 +301,9 @@ class System(Container):
                 if start in t:
                     next_node = t[0] if t[1] == start else t[1]
                     if next_node not in visited:
-                        print('port')
                         chain(next_node, index)
         for i, element in enumerate(elements):
             chain(element, i)
-        print('portre')
         return result
 
     def filter_connections(self, port_list):
