@@ -210,7 +210,7 @@ class CombineUpgrader(UpgraderDecorator):
             if target is None:
                 pattern_name = random.choice(['C+V', 'V+C', 'C+S', 'V+C+S'])
             else:
-                pattern_name = random.choice(['C+V', 'V+C', 'V+C+S'])
+                pattern_name = random.choice(['V+C', 'V+C+S'])
         self.restore_subsys(key[0], key[1])
         print(pattern_name)
         if pattern_name == 'C+V':

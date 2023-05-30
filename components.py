@@ -161,19 +161,6 @@ class Sparing(Logic):
 
 
 #Workspace
-class FromWorkspace(Workspace):
-    def __init__(self, ID:int=0, variable_name='simin', sample_time:int=0):
-        super().__init__('FromWorkspace', ID, 'simulink/Sources/From Workspace', ['OUT1'], 'Common')
-        self.variable_name = variable_name
-        self.sample_time = sample_time
-
-    @property
-    def parameter(self):
-        parameters = {
-        'SampleTime': self.sample_time,
-        'VariableName': self.variable_name
-        }
-        return parameters
 
 class ToWorkspace(Workspace):
     def __init__(self, ID:int=0, variable_name='simout', sample_time:int=-1):
@@ -316,6 +303,20 @@ class UnitDelay(Utilities):
 
 
 #Signal
+class FromWorkspace(Workspace):
+    def __init__(self, ID:int=0, variable_name='simin', sample_time:int=-1):
+        super().__init__('FromWorkspace', ID, 'simulink/Sources/From Workspace', ['OUT1'], 'Common')
+        self.variable_name = variable_name
+        self.sample_time = sample_time
+
+    @property
+    def parameter(self):
+        parameters = {
+        'SampleTime': self.sample_time,
+        'VariableName': self.variable_name
+        }
+        return parameters
+
 class Constant(Signal):
     def __init__(self, ID:int=0, value=1):
         super().__init__('Constant', ID, 'simulink/Sources/Constant', ['OUT1'], 'Common')
@@ -378,7 +379,7 @@ class ElectricalActuator(Actuator):
 @gin.configurable()
 class CircuitBreaker(ElectricalActuator):
     def __init__(self, ID:int=0, threshold:float=0.5, breaker_behavior:int=2):
-        super().__init__('CircuitBreaker', ID, 'ee_lib/Switches & Breakers/Circuit Breaker', ['signalINLConn 1', 'LConn 2', 'RConn 1'], 'Both')
+        super().__init__('CircuitBreaker', ID, 'ee_lib/Switches & Breakers/Circuit Breaker', ['signalINLConn 1', 'LConn 2', 'RConn 1'], 'AC')
         self.threshold = float(threshold)
         self.breaker_behavior = int(breaker_behavior)
 
@@ -632,7 +633,7 @@ class Inductor(ElectricalElement):
     @property
     def parameter(self):
         parameters = {
-            'I': self.inductance
+            'L': self.inductance
         }
         return parameters
 

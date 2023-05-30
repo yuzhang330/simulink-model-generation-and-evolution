@@ -142,7 +142,7 @@ class Subsystem(Container):
         return result
 
 class System(Container):
-    def __init__(self, inport=[], outport=[], solver='ode45', stop_time=100):
+    def __init__(self, inport=[], outport=[], solver='ode23t', stop_time=100):
         super().__init__(inport, outport)
         self.component_list = []
         self.subsystem_list = []
