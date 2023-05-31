@@ -768,6 +768,20 @@ class UniversalMotor(Mission):
             'Ltot': self.Ltot
         }
         return parameters
+@gin.configurable()
+class Inertia(Mission):
+    def __init__(self, ID:int=0, inertia:float=0.5, num_ports=2):
+        super().__init__('Inertia', ID, 'fl_lib/Mechanical/Rotational Elements/Inertia', ['LConn 1', 'RConn 1'], 'Electrical')
+        self.current_type = 'Both'
+        self.inertia = float(inertia)
+        self.num_ports = str(num_ports)
+    @property
+    def parameter(self):
+        parameters = {
+            'inertia': self.inertia,
+            'num_ports': self.num_ports
+        }
+        return parameters
 #%%
 ###################################
 # import random

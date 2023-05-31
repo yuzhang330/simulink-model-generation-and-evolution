@@ -353,7 +353,12 @@ class ACBuilder(ElectricalModelBuilder):
         subsystem = Subsystem(subsystem_type='mission')
         mission = self.component_factory.create_mission_object(name)
         subsystem.add_component(mission)
-        if name == 'IncandescentLamp':
+        if name == 'UniversalMotor':
+            mechanical = self.component_factory.create_mission_object('Inertia')
+            subsystem.add_component(mechanical)
+            subsystem.add_connection((mission.get_port_info()[-1], mechanical.get_port_info()[-1]),
+                                     (mission.get_port_info()[-2], mechanical.get_port_info()[-2]))
+        if name == 'IncandescentLamp' or name == 'UniversalMotor':
             for sensor_name in ['VoltageSensor', 'CurrentSensor']:
                 sensor = self.component_factory.create_sensor(sensor_name)
                 converter = self.component_factory.create_utilities('PSSimuConv')
@@ -747,6 +752,8 @@ class ACBuilder(ElectricalModelBuilder):
         #add switch
         self.add_switch_subsys(num_actuators, seed)
 
+
+
     def random_single_connect(self, component):
         connection = random.choice(self._model.connections)
         port = random.choice(connection)
@@ -775,10 +782,12 @@ class ACBuilder(ElectricalModelBuilder):
         self.random_single_connect(solver)
 
 
-    def build_system(self, seed=None):
+    def build_system(self, max_num_source=3, max_num_sensor=2, max_num_acuator=2, max_num_element=5, max_num_mission=1,
+                     mission_name=None, seed=None):
         if seed:
             random.seed(seed)
-        self.build_subsystem()
+        self.build_subsystem(max_num_source=max_num_source, max_num_sensor=max_num_sensor, max_num_acuator=max_num_acuator,
+                             max_num_element=max_num_element, max_num_mission=max_num_mission, mission_name=mission_name)
         self.build_component()
         self.set_workspace()
 
@@ -1107,7 +1116,12 @@ class DCBuilder(ElectricalModelBuilder):
         subsystem = Subsystem(subsystem_type='mission')
         mission = self.component_factory.create_mission_object(name)
         subsystem.add_component(mission)
-        if name == 'IncandescentLamp':
+        if name == 'UniversalMotor':
+            mechanical = self.component_factory.create_mission_object('Inertia')
+            subsystem.add_component(mechanical)
+            subsystem.add_connection((mission.get_port_info()[-1], mechanical.get_port_info()[-1]),
+                                     (mission.get_port_info()[-2], mechanical.get_port_info()[-2]))
+        if name == 'IncandescentLamp' or name == 'UniversalMotor':
             for sensor_name in ['VoltageSensor', 'CurrentSensor']:
                 sensor = self.component_factory.create_sensor(sensor_name)
                 converter = self.component_factory.create_utilities('PSSimuConv')
@@ -1554,10 +1568,12 @@ class DCBuilder(ElectricalModelBuilder):
         self.random_single_connect(solver)
 
 
-    def build_system(self, seed=None):
+    def build_system(self, max_num_source=3, max_num_sensor=2, max_num_acuator=2, max_num_element=5, max_num_mission=1,
+                     mission_name=None, seed=None):
         if seed:
             random.seed(seed)
-        self.build_subsystem()
+        self.build_subsystem(max_num_source=max_num_source, max_num_sensor=max_num_sensor, max_num_acuator=max_num_acuator,
+                             max_num_element=max_num_element, max_num_mission=max_num_mission, mission_name=mission_name)
         self.build_component()
         self.set_workspace()
 
@@ -1568,10 +1584,9 @@ class ElectricalModelDirector:
     def __init__(self, builder):
         self.builder = builder
 
-    def build_acmodel(self):
-        self.builder.build_component()
-        self.builder.build_connection()
+    def build_model(self,max_num_source=3, max_num_sensor=2, max_num_acuator=2, max_num_element=5, max_num_mission=1,
+                     mission_name=None, seed=None):
+        self.builder.build_system(max_num_source=max_num_source, max_num_sensor=max_num_sensor, max_num_acuator=max_num_acuator,
+                             max_num_element=max_num_element, max_num_mission=max_num_mission, mission_name=mission_name, seed=seed)
 
-    def build_dcmodel(self):
-        self.builder.build_component()
-        self.builder.build_connection()
+
