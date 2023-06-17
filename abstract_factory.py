@@ -6,7 +6,6 @@ import gin
 from components import *
 #%%
 class AbstractComponentFactory:
-
     def create_sensor(self, name):
         pass
 
@@ -27,6 +26,17 @@ class AbstractComponentFactory:
 
     def create_signal(self, name):
         pass
+
+    def create_workspace(self, name):
+        pass
+
+    def create_logic(self, name):
+        pass
+
+    def create_mission_object(self, name):
+        pass
+
+
 
 
 class ElectriaclComponentFactory(AbstractComponentFactory):
@@ -143,7 +153,8 @@ class ACComponentFactory(ElectriaclComponentFactory):
                 switch.change_throw_number(pole_and_throw[1])
                 return switch
             else:
-                subclasses = ElectricalActuator.__subclasses__()
+                subclasses = [cls for cls in ElectricalActuator.__subclasses__() if cls().current_type == 'AC'
+                              or cls().current_type == 'Both']
                 if seed:
                     random.seed(seed)
                 random.shuffle(subclasses)
@@ -211,7 +222,8 @@ class DCComponentFactory(ElectriaclComponentFactory):
                 switch.change_throw_number(pole_and_throw[1])
                 return switch
             else:
-                subclasses = ElectricalActuator.__subclasses__()
+                subclasses = [cls for cls in ElectricalActuator.__subclasses__() if cls().current_type == 'DC'
+                              or cls().current_type == 'Both']
                 if seed:
                     random.seed(seed)
                 random.shuffle(subclasses)

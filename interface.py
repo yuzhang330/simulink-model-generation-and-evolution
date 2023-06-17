@@ -163,6 +163,23 @@ class SystemSimulinkAdapter(SimulinkInterface):
         else:
             eng.set_param(f'{model_name}/{component_name}_{component_id}', parameter_name, param_value_str, nargout=0)
 
+class Implementer:
+    def input_to_simulink(self, system, eng, simulink_model_name):
+        interf = SystemSimulinkAdapter(system)
+        model_name = simulink_model_name
+        eng.new_system(model_name, nargout=0)
+        eng.open_system(model_name, nargout=0)
+        interf.input_system(eng, model_name)
+
+    def change_parameter(self, model_name, parameter_name, parameter_value, component_name, component_id,
+                         subsystem_type=None, subsystem_id=None):
+        eng = matlab.engine.start_matlab()
+        param_value_str = str(parameter_value) if not isinstance(parameter_value, str) else parameter_value
+        if subsystem_type and subsystem_id is not None:
+            eng.set_param(f'{model_name}/subsystem_{subsystem_type}_{subsystem_id}/{component_name}_{component_id}',
+                          parameter_name, param_value_str, nargout=0)
+        else:
+            eng.set_param(f'{model_name}/{component_name}_{component_id}', parameter_name, param_value_str, nargout=0)
 
 
 

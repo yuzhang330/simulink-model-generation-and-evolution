@@ -1,15 +1,17 @@
 import random
+import gin
 from system import System, Subsystem
 from abstract_factory import *
+
 
 class ModelBuilder:
     def __init__(self, component_factory):
         self.component_factory = component_factory
 
-    def build_component(self):
+    def build_system(self):
         pass
 
-    def build_connection(self):
+    def product(self):
         pass
 
 
@@ -17,10 +19,10 @@ class ElectricalModelBuilder(ModelBuilder):
     def __init__(self, component_factory):
         super().__init__(component_factory)
 
-    def build_component(self):
+    def build_system(self):
         pass
 
-    def build_connection(self):
+    def product(self):
         pass
 
 
@@ -688,8 +690,13 @@ class ACBuilder(ElectricalModelBuilder):
         for i in range(num_actuators):
             num_pole = random.randint(1, 1)
             connection = random.choice(connections)
+            while any('sensor_voltage' in p for p in connection) or any(
+                    'sensor_both' and 'outport' in p for p in connection):
+                connection = random.choice(connections)
             port = random.choice(connection)
-            all_related_connections = self._model.filter_connections([port])
+            related_connections = self._model.filter_connections([port])
+            all_related_connections = [[p for p in related_connections[0] if ('sensor_voltage' not in p)
+                                        and ('sensor_both' and 'outport' not in p)]]
             num_connections = random.randint(1, len(all_related_connections[0]))
             while num_connections > 8:
                 num_connections = random.randint(1, len(all_related_connections[0]))
@@ -792,10 +799,14 @@ class ACBuilder(ElectricalModelBuilder):
         self.set_workspace()
 
 
+@gin.configurable
 class DCBuilder(ElectricalModelBuilder):
-    def __init__(self):
+    def __init__(self, max_source_component=4, max_element_component=5, max_sensor_component=3):
         super().__init__(DCComponentFactory())
         self.reset()
+        self.max_source_component = max_source_component
+        self.max_element_component = max_element_component
+        self.max_sensor_component = max_sensor_component
 
     def reset(self):
         self._model = System()
@@ -842,9 +853,11 @@ class DCBuilder(ElectricalModelBuilder):
                     subsystem.add_connection((port.replace('-', ''), out_port[0].get_port_info()[0]))
         return subsystem
 
-    def create_source_subsystem(self, type, max_num_component=3, seed=None, battery_exsist=None):
+
+    def create_source_subsystem(self, type, seed=None, battery_exsist=None):
         if seed:
             random.seed(seed)
+        max_num_component = self.max_source_component
         if type == 'voltage':
             subsystem = Subsystem(subsystem_type='source_voltage')
             num_sources = random.randint(1, max_num_component)
@@ -944,10 +957,11 @@ class DCBuilder(ElectricalModelBuilder):
                                        port_class.name == 'ConnectionPort' and port_class.port_type == 'Outport']
         return subsystem_connected
 
-    def create_element_subsystem(self, max_num_component=5, seed=None):
+    def create_element_subsystem(self, seed=None):
         subsystem = Subsystem(subsystem_type='element')
         if seed:
             random.seed(seed)
+        max_num_component = self.max_element_component
         #create elements randomly
         num_components = random.randint(1, max_num_component)
         for i in range(num_components):
@@ -1052,10 +1066,11 @@ class DCBuilder(ElectricalModelBuilder):
                                        port_class.name == 'ConnectionPort' and port_class.port_type == 'Outport']
         return subsystem
 
-    def create_sensor_subsystem(self, max_num_component=3, seed=None):
+    def create_sensor_subsystem(self, seed=None):
         if seed:
             random.seed(seed)
         subsystem = Subsystem(subsystem_type='sensor')
+        max_num_component = self.max_sensor_component
         num_sensors = random.randint(1, max_num_component)
         for i in range(num_sensors):
             component = self.component_factory.create_sensor(seed=seed)
@@ -1476,8 +1491,12 @@ class DCBuilder(ElectricalModelBuilder):
         for i in range(num_actuators):
             num_pole = random.randint(1, 1)
             connection = random.choice(connections)
+            while any('sensor_voltage' in p for p in connection) or any('sensor_both' and 'outport' in p for p in connection):
+                connection = random.choice(connections)
             port = random.choice(connection)
-            all_related_connections = self._model.filter_connections([port])
+            related_connections = self._model.filter_connections([port])
+            all_related_connections = [[p for p in related_connections[0] if ('sensor_voltage' not in p)
+                                       and ('sensor_both' and 'outport' not in p)]]
             num_connections = random.randint(1, len(all_related_connections[0]))
             while num_connections > 8:
                 num_connections = random.randint(1, len(all_related_connections[0]))
@@ -1494,7 +1513,7 @@ class DCBuilder(ElectricalModelBuilder):
                 i += 1
 
     def build_subsystem(self, max_num_source=3, max_num_sensor=2, max_num_acuator=2, max_num_element=5,
-                        max_num_mission=1, mission_name=None, seed=None):
+                        max_num_mission=1, mission_name=None, seed=None, battery_sub_exsist=True):
     # def build_subsystem(self, max_num_source=5, max_num_sensor=3, max_num_acuator=2, max_num_element=10, max_num_mission=1, mission_name=None, seed=None):
         if seed:
             random.seed(seed)
@@ -1504,7 +1523,10 @@ class DCBuilder(ElectricalModelBuilder):
         num_actuators = random.randint(1, max_num_acuator)
         num_mission = random.randint(1, max_num_mission)
         for i in range(num_sources):
-            type = random.choice(['voltage', 'current', 'battery'])
+            if battery_sub_exsist:
+                type = random.choice(['voltage', 'current', 'battery'])
+            else:
+                type = random.choice(['voltage', 'current'])
             subsys = self.create_source_subsystem(type=type, seed=seed)
             self._model.add_subsystem(subsys)
         for i in range(num_elements):
@@ -1580,13 +1602,15 @@ class DCBuilder(ElectricalModelBuilder):
 
 
 
-class ElectricalModelDirector:
+class ModelDirector:
     def __init__(self, builder):
         self.builder = builder
 
-    def build_model(self,max_num_source=3, max_num_sensor=2, max_num_acuator=2, max_num_element=5, max_num_mission=1,
+    def build_model(self, max_num_source=2, max_num_sensor=2, max_num_acuator=1, max_num_element=3, max_num_mission=1,
                      mission_name=None, seed=None):
         self.builder.build_system(max_num_source=max_num_source, max_num_sensor=max_num_sensor, max_num_acuator=max_num_acuator,
                              max_num_element=max_num_element, max_num_mission=max_num_mission, mission_name=mission_name, seed=seed)
+        model = self.builder.product()
+        return model
 
 

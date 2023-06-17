@@ -47,8 +47,8 @@ class Component:
             port_info.append(port_name)
         return port_info
 
-    def take_port(self, value):
-        ports = [port_item for port_item in self.get_port_info() if value in port_item]
+    def take_port(self, string):
+        ports = [port_item for port_item in self.get_port_info() if string in port_item]
         return ports
 
 class Workspace(Component):
@@ -138,22 +138,22 @@ class Sparing(Logic):
     def parameter(self):
         function = f"""function outputs = select(signals, error)
 
-                                num = size(signals, 1);
-                                selected = zeros({self.n}, size(signals, 2));
+                    num = size(signals, 1);
+                    selected = zeros({self.n}, size(signals, 2));
 
-                                counter = 0;
-                                for i = 1:num
-                                    if error(i) ~= 0 && counter < {self.n}
-                                        counter = counter + 1;
-                                        selected(counter, :) = signals(i, :);
-                                    end
+                    counter = 0;
+                    for i = 1:num
+                        if error(i) ~= 0 && counter < {self.n}
+                            counter = counter + 1;
+                            selected(counter, :) = signals(i, :);
+                        end
 
-                                    if counter >= {self.n}
-                                        break;
-                                    end
-                                end
+                        if counter >= {self.n}
+                            break;
+                        end
+                    end
 
-                                outputs = selected; """
+                    outputs = selected; """
         parameters = {
             'Function': function
         }
@@ -208,8 +208,16 @@ class PSSimuConv(Utilities):
         super().__init__('PSSimuConv', ID, 'nesl_utility/PS-Simulink Converter', ['INLConn 1', 'OUT1'], 'Common')
 
 class SimuPSConv(Utilities):
-    def __init__(self, ID:int=0):
+    def __init__(self, ID:int=0, filter:str='filter'):
         super().__init__('SimuPSConv', ID, 'nesl_utility/Simulink-PS Converter', ['IN1', 'OUTRConn 1'], 'Common')
+        self.filter = filter
+
+    @property
+    def parameter(self):
+        parameters = {
+            'FilteringAndDerivatives': self.filter
+        }
+        return parameters
 
 class Scope(Utilities):
     def __init__(self, ID:int=0):
@@ -304,7 +312,7 @@ class UnitDelay(Utilities):
 
 #Signal
 class FromWorkspace(Workspace):
-    def __init__(self, ID:int=0, variable_name='simin', sample_time:int=-1):
+    def __init__(self, ID:int=0, variable_name='simin', sample_time:int=0):
         super().__init__('FromWorkspace', ID, 'simulink/Sources/From Workspace', ['OUT1'], 'Common')
         self.variable_name = variable_name
         self.sample_time = sample_time
@@ -520,11 +528,6 @@ class VoltageSourceAC(ElectricalSource):
         }
         return parameters
 
-@gin.configurable()
-class ControlledVoltageSourceAC(ElectricalSource):
-    def __init__(self, ID:int=0):
-        super().__init__('ControlledVoltageSourceAC', ID, 'fl_lib/Electrical/Electrical Sources/Controlled Voltage Source',
-                         ['signalINRConn 1','+LConn 1','-RConn 2'], 'AC', 'voltage')
 
 @gin.configurable()
 class CurrentSourceAC(ElectricalSource):
@@ -546,12 +549,6 @@ class CurrentSourceAC(ElectricalSource):
         return parameters
 
 @gin.configurable()
-class ControlledCurrentSourceAC(ElectricalSource):
-    def __init__(self, ID:int=0):
-        super().__init__('ControlledCurrentSourceAC', ID, 'fl_lib/Electrical/Electrical Sources/Controlled Current Source',
-                         ['signalINRConn 1','+LConn 1','-RConn 2'], 'AC', 'current')
-
-@gin.configurable()
 class VoltageSourceDC(ElectricalSource):
     def __init__(self, ID:int=0, voltage:float=10):
         super().__init__('VoltageSourceDC', ID, 'ee_lib/Sources/Voltage Source', ['+LConn 1','-RConn 1'], 'DC', 'voltage')
@@ -565,10 +562,10 @@ class VoltageSourceDC(ElectricalSource):
         return parameters
 
 @gin.configurable()
-class ControlledVoltageSourceDC(ElectricalSource):
+class ControlledVoltageSource(ElectricalSource):
     def __init__(self, ID:int=0):
         super().__init__('ControlledVoltageSourceDC', ID, 'fl_lib/Electrical/Electrical Sources/Controlled Voltage Source',
-                         ['signalINRConn 1','+LConn 1','-RConn 2'], 'DC', 'voltage')
+                         ['signalINRConn 1','+LConn 1','-RConn 2'], 'Both', 'voltage')
 
 
 @gin.configurable()
@@ -586,10 +583,10 @@ class CurrentSourceDC(ElectricalSource):
 
 
 @gin.configurable()
-class ControlledCurrentSourceDC(ElectricalSource):
+class ControlledCurrentSource(ElectricalSource):
     def __init__(self, ID:int=0):
         super().__init__('ControlledCurrentSourceDC', ID, 'fl_lib/Electrical/Electrical Sources/Controlled Current Source',
-                         ['signalINRConn 1','+LConn 1','-RConn 2'], 'DC', 'current')
+                         ['signalINRConn 1','+LConn 1','-RConn 2'], 'Both', 'current')
 
 #Element
 @gin.configurable()
@@ -666,8 +663,8 @@ class Resistor(ElectricalElement):
 
 @gin.configurable()
 class Varistor(ElectricalElement):
-    def __init__(self, ID:int=0, vclamp:float=260, roff:float=3e8, ron:float=1, vln:float=130, vnu:float=300, rLeak:float=3e8,
-                 alphaNormal:float=45, rUpturn:float=0.07, prm=None):
+    def __init__(self, ID:int=0, vclamp:float=0.1, roff:float=10, ron:float=1, vln:float=0.1, vnu:float=100, rLeak:float=10,
+                 alphaNormal:float=45, rUpturn:float=0.1, prm=None):
         super().__init__('Varistor', ID, 'ee_lib/Passive/Varistor', ['LConn 1', 'RConn 1'], 'Both')
         if prm:
             if prm not in ['linear', 'power-law']:

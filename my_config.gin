@@ -1,14 +1,16 @@
+
+
 randomize_attributes.range = [0.5,1.5]
 
-CircuitBreaker.threshold = 10
+CircuitBreaker.threshold = 0.5
 
-SPDTSwitch.threshold = 10
+SPDTSwitch.threshold = 0.5
 
 SPMTSwitch.number = 3
 
-Battery.vnom = 100
-Battery.innerR = 10
-Battery.capacity = 100
+Battery.vnom = 12
+Battery.innerR = 2
+Battery.capacity = 50
 
 VoltageSourceAC.peak = 10
 VoltageSourceAC.phase_shift = 10
@@ -33,3 +35,5 @@ Resistor.resistance = 10
 Diode.forwardV = 0.5
 Diode.onR = 0.01
 Diode.breakV = 500
+
+DCBuilder.max_source_component = 4
