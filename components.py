@@ -167,12 +167,14 @@ class ToWorkspace(Workspace):
         super().__init__('ToWorkspace', ID, 'simulink/Sinks/To Workspace', ['IN1'], 'Common')
         self.variable_name = variable_name
         self.sample_time = sample_time
+        self.save_format = 'Structure with Time'
 
     @property
     def parameter(self):
         parameters = {
             'SampleTime': self.sample_time,
-            'VariableName': self.variable_name
+            'VariableName': self.variable_name,
+            'SaveFormat': self.save_format
         }
         return parameters
 

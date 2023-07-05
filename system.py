@@ -1,28 +1,17 @@
 from components import *
 
 class Container:
-    def __init__(self, inport, outport):
+    def __init__(self, inport, outport, component_list, connections):
         self.inport = inport
         self.outport = outport
+        self.component_list = component_list
+        self.connections = connections
 
     def change_parameter(self, parameter_name, value):
         if hasattr(self, parameter_name):
             setattr(self, parameter_name, value)
         else:
             raise ValueError(f"{parameter_name} is not a valid parameter.")
-
-
-class Subsystem(Container):
-    def __init__(self, inport=[], outport=[], name='subsystem', ID=0, subsystem_type=None):
-        super().__init__(inport, outport)
-        self.component_list = []
-        self.connections = []
-        self.name = name
-        self.ID = ID
-        self.subsystem_type = subsystem_type
-        self.inport_info = []
-        self.outport_info = []
-        self.fault_tolerant = 0
 
     def add_component(self, *components):
         for component in components:
@@ -48,6 +37,19 @@ class Subsystem(Container):
 
     def list_connections(self):
         return [f"{src} -> {dest}" for (src, dest) in self.connections]
+
+
+class Subsystem(Container):
+    def __init__(self, inport=[], outport=[], component_list=[], connections=[], name='subsystem', ID=0, subsystem_type=None):
+        super().__init__(inport, outport, component_list, connections)
+        self.component_list = []
+        self.connections = []
+        self.name = name
+        self.ID = ID
+        self.subsystem_type = subsystem_type
+        self.inport_info = []
+        self.outport_info = []
+        self.fault_tolerant = 0
 
     def list_ports(self):
         for port in self.inport:
@@ -142,25 +144,22 @@ class Subsystem(Container):
         return result
 
 class System(Container):
-    def __init__(self, inport=[], outport=[], solver='ode23t', stop_time=100):
-        super().__init__(inport, outport)
+    def __init__(self, inport=[], outport=[], component_list=[], connections=[], solver='ode23t', stop_time=100):
+        super().__init__(inport, outport, component_list, connections)
         self.component_list = []
-        self.subsystem_list = []
         self.connections = []
+        self.subsystem_list = []
         self.solver = solver
         self.stop_time = stop_time
+    @property
+    def parameter(self):
+        parameters = {
+            'Solver': self.solver,
+            'StopTime': self.stop_time
+        }
+        return parameters
 
-    def add_component(self, *components):
-        for component in components:
-            if isinstance(component, Component):
-                name_count = sum(1 for c in self.component_list if c.name == component.name)
-                if name_count > 0:
-                    existing_ids = [c.ID for c in self.component_list if c.name == component.name]
-                    max_id = max(existing_ids)
-                    component.ID = max_id + 1
-                self.component_list.append(component)
-            else:
-                raise ValueError("Only instances of Component can be added to component_list.")
+
 
     def add_subsystem(self, *subsystems):
         for subsystem in subsystems:
@@ -175,21 +174,8 @@ class System(Container):
             else:
                 raise ValueError("Only instances of Subsystem can be added to the subsystem_list.")
 
-    def add_connection(self, *connections):
-        for connection in connections:
-            if isinstance(connection, tuple):
-                self.connections.append(connection)
-            else:
-                raise ValueError("Connections must be tuples.")
-
-    def list_components(self):
-        return [f"{component.name}_id{component.ID}" for component in self.component_list]
-
     def list_subsystem(self):
-        return [subsystem.name for subsystem in self.subsystem_list]
-
-    def list_connections(self):
-        return [f"{src} -> {dest}" for (src, dest) in self.connections]
+        return [f"{subsystem.name}_{subsystem.subsystem_type }_id{subsystem.ID}" for subsystem in self.subsystem_list]
 
     def change_component_paramter(self, parameter_name, parameter_value, component_name, component_id,
                                   subsystem_type=None, subsystem_id=None):
@@ -214,6 +200,58 @@ class System(Container):
                     if hasattr(new_component, parameter_name):
                         setattr(new_component, parameter_name, parameter_value)
                     self.component_list.append(new_component)
+
+    def change_workspace(self, id, variable_name, subsystem_type=None, subsystem_id=None):
+        if subsystem_type and subsystem_id is not None:
+            for subsys in self.subsystem_list:
+                if subsys.subsystem_type == subsystem_type and subsys.ID == subsystem_id:
+                    new_subsys = subsys
+                    self.subsystem_list.remove(subsys)
+                    new_subsys.change_workspace(id, variable_name)
+                    self.subsystem_list.append(new_subsys)
+        else:
+            found = False
+            for instance in self.component_list:
+                if instance.name == 'FromWorkspace' and instance.ID == id:
+                    instance.variable_name = variable_name
+                    found = True
+            if not found:
+                raise ValueError("There is no such FromWorkspace component.")
+
+    def change_signal(self, name, id, new_name, subsystem_type=None, subsystem_id=None):
+        if subsystem_type and subsystem_id is not None:
+            for subsys in self.subsystem_list:
+                if subsys.subsystem_type == subsystem_type and subsys.ID == subsystem_id:
+                    new_subsys = subsys
+                    self.subsystem_list.remove(subsys)
+                    new_subsys.change_signal(name, id, new_name)
+                    self.subsystem_list.append(new_subsys)
+        else:
+            signal = [instance for instance in self.component_list if instance.name == name and instance.ID == id
+                      and instance.component_type == 'Signal']
+            if not signal:
+                raise ValueError("There is no such signal component in the system.")
+            else:
+                index_list = [i for i, instance in enumerate(self.component_list) if instance == signal[0]]
+                found = False
+                for cls in Signal.__subclasses__():
+                    if cls().name == new_name:
+                        new_signal = cls()
+                        if len(new_signal.port) == len(signal[0].port):
+                            self.add_component(new_signal)
+                            new_connections = []
+                            old_ports_map = dict(zip(signal[0].get_port_info(), new_signal.get_port_info()))
+                            for pair in self.connections:
+                                first_element = pair[0] if pair[0] not in old_ports_map else old_ports_map[pair[0]]
+                                second_element = pair[1] if pair[1] not in old_ports_map else old_ports_map[pair[1]]
+                                new_connections.append((first_element, second_element))
+                            self.connections = new_connections
+                            self.component_list.pop(index_list[0])
+                            found = True
+                        else:
+                            raise ValueError("The number of ports do not match.")
+                if not found:
+                    raise ValueError("There is no such new signal component.")
 
     def list_played_components(self):
         played_ports = [port.replace('signal', '') for instance in self.component_list for port in instance.get_port_info() if 'signal' in port]

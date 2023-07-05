@@ -139,8 +139,11 @@ class SystemSimulinkAdapter(SimulinkInterface):
             self.input_connections(eng, connection, subsystem_path, 'block')
 
     def input_system_parameters(self, eng, model_name):
-        eng.set_param(model_name, 'Solver', self.system.solver, nargout=0)
-        eng.set_param(model_name, 'StopTime', str(self.system.stop_time), nargout=0)
+        for param_name, param_value in self.system.parameter.items():
+            param_value_str = str(param_value) if not isinstance(param_value, str) else param_value
+            eng.set_param(model_name, param_name, param_value_str, nargout=0)
+        # eng.set_param(model_name, 'Solver', self.system.solver, nargout=0)
+        # eng.set_param(model_name, 'StopTime', str(self.system.stop_time), nargout=0)
 
     def input_system(self, eng, model_name):
         self.input_system_parameters(eng, model_name)
@@ -163,23 +166,44 @@ class SystemSimulinkAdapter(SimulinkInterface):
         else:
             eng.set_param(f'{model_name}/{component_name}_{component_id}', parameter_name, param_value_str, nargout=0)
 
+
+
+
+
+
+
 class Implementer:
-    def input_to_simulink(self, system, eng, simulink_model_name):
+    def __init__(self):
+        engine = matlab.engine.start_matlab()
+        self.eng = engine
+    def input_to_simulink(self, system, simulink_model_name):
         interf = SystemSimulinkAdapter(system)
         model_name = simulink_model_name
-        eng.new_system(model_name, nargout=0)
-        eng.open_system(model_name, nargout=0)
-        interf.input_system(eng, model_name)
+        self.eng.new_system(model_name, nargout=0)
+        self.eng.open_system(model_name, nargout=0)
+        interf.input_system(self.eng, model_name)
 
     def change_parameter(self, model_name, parameter_name, parameter_value, component_name, component_id,
                          subsystem_type=None, subsystem_id=None):
-        eng = matlab.engine.start_matlab()
         param_value_str = str(parameter_value) if not isinstance(parameter_value, str) else parameter_value
         if subsystem_type and subsystem_id is not None:
-            eng.set_param(f'{model_name}/subsystem_{subsystem_type}_{subsystem_id}/{component_name}_{component_id}',
+            self.eng.set_param(f'{model_name}/subsystem_{subsystem_type}_{subsystem_id}/{component_name}_{component_id}',
                           parameter_name, param_value_str, nargout=0)
         else:
-            eng.set_param(f'{model_name}/{component_name}_{component_id}', parameter_name, param_value_str, nargout=0)
+            self.eng.set_param(f'{model_name}/{component_name}_{component_id}', parameter_name, param_value_str, nargout=0)
+
+    def change_variable(self, variable_name, variable_value):
+        if isinstance(variable_value, dict):
+            self.eng.workspace[variable_name] = self.eng.struct(variable_value)
+        else:
+            self.eng.workspace[variable_name] = variable_value
+
+    def read_variable(self, variable_name, simulation_out=True):
+        if simulation_out:
+            value = self.eng.eval(f'out.get("{variable_name}")')
+        else:
+            value = self.eng.workspace[variable_name]
+        return value
 
 
 

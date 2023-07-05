@@ -25,7 +25,7 @@ class ElectricalModelBuilder(ModelBuilder):
     def product(self):
         pass
 
-
+@gin.configurable
 class ACBuilder(ElectricalModelBuilder):
     def __init__(self):
         super().__init__(ACComponentFactory())
@@ -1000,7 +1000,7 @@ class DCBuilder(ElectricalModelBuilder):
         subsystem.add_component(inport,outport)
         n = random.randint(0, len(unused_port)-2)
         for i in range(n):
-            port_name = random.choice(['Inport','Outport'])
+            port_name = random.choice(['Inport', 'Outport'])
             port = self.component_factory.create_port(port_name, type='electrical')
             subsystem.add_component(port)
         #connect components with input and output
