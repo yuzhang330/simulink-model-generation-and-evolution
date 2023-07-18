@@ -159,6 +159,19 @@ class Sparing(Logic):
         }
         return parameters
 
+class SignalAlter(Logic):
+    def __init__(self, ID:int=0):
+        super().__init__('SignalAlter', ID, 'simulink/User-Defined Functions/MATLAB Function', ['IN1', 'OUT1'], 'Common')
+        self.alter = """function y = alter(u)
+                        y = u + 1;
+                        end
+                        """
+    @property
+    def parameter(self):
+        parameters = {
+            'Function': self.alter
+        }
+        return parameters
 
 #Workspace
 

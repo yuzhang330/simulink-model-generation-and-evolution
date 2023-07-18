@@ -72,7 +72,92 @@ class UpgraderDecorator(Upgrader):
                                 self.wrappee.sys.subsystem_list[i] = copy.deepcopy(subsys_2)
                                 break
                         break
-
+    def check_sensor_signal(self, subsys, sensor_name, sensor_id):
+        check = 0
+        sensor_key = f'{sensor_name}_id{sensor_id}'
+        ports = [t[1] if sensor_key in t[0] else t[0] for t in
+                 subsys.connections if sensor_key in t[0] or sensor_key in t[1]]
+        for port in ports:
+            if 'PSSimuConv' in port:
+                convert = port
+            if 'PSSimuConvUpgrade' in port:
+                convert = port
+                break
+        check_ports = [t[1] if t[0] == convert else t[0] for t in
+                       subsys.connections if t[0] == convert or t[1] == convert]
+        for p in check_ports:
+            if 'SignalAlter' in p:
+                check = 1
+        return convert, check
+    def alter_sensor_signal(self, subsystem_type=None, subsystem_id=None, sensor_name=None, sensor_id=None, seed=None):
+        if seed:
+            random.seed(seed)
+        if subsystem_type is None or subsystem_id is None:
+            sensor_subs = []
+            for i, subsys in enumerate(self.wrappee.sys.subsystem_list):
+                if 'sensor' in subsys.subsystem_type:
+                    p1 = 0
+                    p2 = 0
+                    for comp in subsys.component_list:
+                        if 'SignalAlter' in comp.name:
+                            p1 += 1
+                        if 'Sensor' in comp.name:
+                            p2 += 1
+                    if p2 > p1:
+                        sensor_subs.append(subsys)
+            if not sensor_subs:
+                raise ValueError(f'There is no available sensor systems')
+            subsys = random.choice(sensor_subs)
+            subsystem_type = subsys.subsystem_type
+            subsystem_id = subsys.ID
+        for i, subsys in enumerate(self.wrappee.sys.subsystem_list):
+            if subsys.subsystem_type == subsystem_type and subsys.ID == subsystem_id:
+                sensors = []
+                if sensor_name is None or sensor_id is None:
+                    for comp in subsys.component_list:
+                        if 'Sensor' in comp.name:
+                            sensors.append(comp)
+                    sensor = random.choice(sensors)
+                    sensor_name = sensor.name
+                    sensor_id = sensor.ID
+                    convert, check = self.check_sensor_signal(subsys, sensor_name, sensor_id)
+                    while check:
+                        sensor = random.choice(sensors)
+                        sensor_name = sensor.name
+                        sensor_id = sensor.ID
+                        convert, check = self.check_sensor_signal(subsys, sensor_name, sensor_id)
+                else:
+                    convert, check = self.check_sensor_signal(subsys, sensor_name, sensor_id)
+                id_index = convert.find('id')
+                underscore_index = convert.find('_', id_index)
+                connect_port = convert[:underscore_index]
+                connect_port = f'{connect_port}_portOUT1'
+                alter = self.create_upgrade_component('SignalAlter', Logic)
+                subsys.add_component(alter)
+                new_connnection_list = []
+                for t in subsys.connections:
+                    new_t = tuple(alter.get_port_info()[-1] if i == connect_port else i for i in t)
+                    new_connnection_list.append(new_t)
+                subsys.connections = new_connnection_list
+                subsys.add_connection((alter.get_port_info()[0], connect_port))
+    def relpace_component(self, new_component_name, new_component_class, subsystem_type, subsystem_id, component_name, component_id):
+        for i, subsys in enumerate(self.wrappee.sys.subsystem_list):
+            if subsys.subsystem_type == subsystem_type and subsys.ID == subsystem_id:
+                new_component = self.create_upgrade_component(new_component_name, new_component_class)
+                for comp in subsys.component_list:
+                    if comp.name == component_name and comp.ID == component_id:
+                        if comp.port == new_component.port:
+                            subsys.add_component(new_component)
+                            new_connnection_list = []
+                            key = f'{component_name}_id{component_id}'
+                            new_key = f'{new_component.name}_id{new_component.ID}'
+                            for connection in subsys.connections:
+                                new_connection = tuple(p.replace(key, new_key) if key in p else p for p in connection)
+                                new_connnection_list.append(new_connection)
+                            subsys.connections = new_connnection_list
+                            subsys.component_list.remove(comp)
+                        else:
+                            raise ValueError(f'ports are not same between the two components')
 
 
 class SingleUpgrader(UpgraderDecorator):

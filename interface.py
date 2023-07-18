@@ -1,5 +1,6 @@
 import matlab
 import matlab.engine
+import time
 class SimulinkInterface:
     def input_systemparameters(self):
         pass
@@ -173,15 +174,28 @@ class SystemSimulinkAdapter(SimulinkInterface):
 
 
 class Implementer:
-    def __init__(self):
+    def __init__(self, adapter):
         engine = matlab.engine.start_matlab()
         self.eng = engine
+        self.adapter = adapter
     def input_to_simulink(self, system, simulink_model_name):
-        interf = SystemSimulinkAdapter(system)
+        # interf = SystemSimulinkAdapter(system)
+        interf = self.adapter(system)
         model_name = simulink_model_name
+        engine = matlab.engine.start_matlab()
+        self.eng = engine
         self.eng.new_system(model_name, nargout=0)
         self.eng.open_system(model_name, nargout=0)
         interf.input_system(self.eng, model_name)
+
+    def read_parameter(self, model_name, parameter_name, component_name, component_id,
+                         subsystem_type=None, subsystem_id=None):
+        if subsystem_type and subsystem_id is not None:
+            values = self.eng.get_param(f'{model_name}/subsystem_{subsystem_type}_{subsystem_id}/{component_name}_{component_id}'
+                                        , parameter_name, nargout=1)
+        else:
+            values = self.eng.get_param(f'{model_name}/{component_name}_{component_id}' , parameter_name, nargout=1)
+        return values
 
     def change_parameter(self, model_name, parameter_name, parameter_value, component_name, component_id,
                          subsystem_type=None, subsystem_id=None):

@@ -695,8 +695,9 @@ class ACBuilder(ElectricalModelBuilder):
                 connection = random.choice(connections)
             port = random.choice(connection)
             related_connections = self._model.filter_connections([port])
-            all_related_connections = [[p for p in related_connections[0] if ('sensor_voltage' not in p)
-                                        and ('sensor_both' and 'outport' not in p)]]
+            all_related_connections = [
+                [p for p in related_connections[0] if all('sensor_voltage' not in item for item in p)
+                 and all('sensor_both' and 'outport' not in item for item in p) and all('switch' not in item for item in p)]]
             num_connections = random.randint(1, len(all_related_connections[0]))
             while num_connections > 8:
                 num_connections = random.randint(1, len(all_related_connections[0]))
@@ -1127,7 +1128,7 @@ class DCBuilder(ElectricalModelBuilder):
         if seed:
             random.seed(seed)
         if not name:
-            name = random.choice(['IncandescentLamp'])
+            name = random.choice(['UniversalMotor'])
         subsystem = Subsystem(subsystem_type='mission')
         mission = self.component_factory.create_mission_object(name)
         subsystem.add_component(mission)
@@ -1227,18 +1228,33 @@ class DCBuilder(ElectricalModelBuilder):
                 port_2 = connection[0]
                 self.add_series_connections(subsys, base_port, port_1, port_2)
         if type == 'source':
-            length = []
             connection = random.choice(self._model.connections)
             if any(connection in sublist for path in exclude_paths for sublist in path):
-                for path in exclude_paths:
-                    if any(connection in sublist for sublist in path):
-                        length.append(len(path))
-                if all(value > 1 for value in length):
-                    exclude_paths = [[sublist for sublist in path if connection not in sublist] for path in
-                                     exclude_paths]
+                involved_num = []
+                for i, path in enumerate(exclude_paths):
+                    involved_path = 0
+                    for sublist in path:
+                        if connection in sublist:
+                            involved_path += 1
+                    if involved_path > 0:
+                        involved_num.append(involved_path)
+                length_path = [len(path) for path in exclude_paths if any(connection in sublist for sublist in path)]
+                empty_path = [a - b for a, b in zip(length_path, involved_num)]
             while any(connection in sublist for path in exclude_paths for sublist in path) and any(
-                    value == 1 for value in length):
+                    value <= 1 for value in empty_path):
                 connection = random.choice(self._model.connections)
+                if any(connection in sublist for path in exclude_paths for sublist in path):
+                    involved_num = []
+                    for i, path in enumerate(exclude_paths):
+                        involved_path = 0
+                        for sublist in path:
+                            if connection in sublist:
+                                involved_path += 1
+                        if involved_path > 0:
+                            involved_num.append(involved_path)
+                    length_path = [len(path) for path in exclude_paths if
+                                   any(connection in sublist for sublist in path)]
+                    empty_path = [a - b for a, b in zip(length_path, involved_num)]
             self._model.connections.remove(connection)
             if any('source' in p for p in connection):
                 s_port = [x for x in connection if 'source' in x]
@@ -1362,8 +1378,8 @@ class DCBuilder(ElectricalModelBuilder):
         type_p_in = 0
         type_p_out = 0
         type_s = 0
-        involved_num = []
         for connection in self._model.connections:
+            involved_num = []
             for i, path in enumerate(exclude_paths):
                 involved_path = 0
                 for sublist in path:
@@ -1495,8 +1511,8 @@ class DCBuilder(ElectricalModelBuilder):
                 connection = random.choice(connections)
             port = random.choice(connection)
             related_connections = self._model.filter_connections([port])
-            all_related_connections = [[p for p in related_connections[0] if ('sensor_voltage' not in p)
-                                       and ('sensor_both' and 'outport' not in p)]]
+            all_related_connections = [[p for p in related_connections[0] if all('sensor_voltage' not in item for item in p)
+                                       and all('sensor_both' and 'outport' not in item for item in p) and all('switch' not in item for item in p)]]
             num_connections = random.randint(1, len(all_related_connections[0]))
             while num_connections > 8:
                 num_connections = random.randint(1, len(all_related_connections[0]))
@@ -1513,7 +1529,7 @@ class DCBuilder(ElectricalModelBuilder):
                 i += 1
 
     def build_subsystem(self, max_num_source=3, max_num_sensor=2, max_num_acuator=2, max_num_element=5,
-                        max_num_mission=1, mission_name=None, seed=None, battery_sub_exsist=True):
+                        max_num_mission=1, mission_name=None, seed=None, battery_sub_exsist=None):
     # def build_subsystem(self, max_num_source=5, max_num_sensor=3, max_num_acuator=2, max_num_element=10, max_num_mission=1, mission_name=None, seed=None):
         if seed:
             random.seed(seed)
@@ -1606,7 +1622,7 @@ class ModelDirector:
     def __init__(self, builder):
         self.builder = builder
 
-    def build_model(self, max_num_source=2, max_num_sensor=2, max_num_acuator=1, max_num_element=3, max_num_mission=1,
+    def build_model(self, max_num_source=3, max_num_sensor=2, max_num_acuator=1, max_num_element=3, max_num_mission=1,
                      mission_name=None, seed=None):
         self.builder.build_system(max_num_source=max_num_source, max_num_sensor=max_num_sensor, max_num_acuator=max_num_acuator,
                              max_num_element=max_num_element, max_num_mission=max_num_mission, mission_name=mission_name, seed=seed)
