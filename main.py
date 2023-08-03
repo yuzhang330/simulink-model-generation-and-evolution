@@ -1,16 +1,40 @@
-# This is a sample Python script.
+from components import *
+from system import *
+from model_builder import *
+from interface import *
+import matlab
+import matlab.engine
+from upgrader import *
+#%%
+# initialize model generator
+gin.parse_config_file('my_config.gin')
+director = ModelDirector(DCBuilder())
+# generate models
+sys = director.build_model(seed=45)
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+#%%
+# initialize interface
+interf = Implementer(SystemSimulinkAdapter)
+#%%
+# implement model
+interf.input_to_simulink(sys, 'my_simulink_model4')
+#%%
+# change model parameter
+interf.change_parameter('my_simulink_model4', parameter_name='dc_current', parameter_value=15, component_name='CurrentSourceDC',
+                        component_id=0, subsystem_type='source_current', subsystem_id=0)
+#%%
+# initialize upgrader
+up = BasicUpgrader(sys)
+#%%
+# upgrade with single pattern
+sigup = SingleUpgrader(up)
+sigup.upgrade(pattern_name='voter', subsystem_type='sensor_voltage', subsystem_id=0)
 
+#%%
+# upgrade with combined pattern
+comup = CombineUpgrader(up)
+comup.upgrade(subsystem_type='sensor_voltage', subsystem_id=0, target=5)
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+#%%
+# implement upgrede
+interf.input_to_simulink(sys, 'my_simulink_model4')
