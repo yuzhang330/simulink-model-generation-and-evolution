@@ -212,6 +212,25 @@ class Implementer:
         else:
             self.eng.workspace[variable_name] = variable_value
 
+    def change_component_control_variable(self, sys, variable_value, component_name, component_id, subsystem_type=None, subsystem_id=None):
+        variable_name = ''
+        if subsystem_type is not None and subsystem_id is not None:
+            subsys = f'subsystem_{subsystem_type}_{subsystem_id}'
+        else:
+            subsys = 'system'
+        full_list = sys.list_all_played_component()
+        sub_list = full_list[subsys]
+        for pair in sub_list:
+            if pair[0].name == component_name and pair[0].ID == component_id:
+                variable_name = pair[1].variable_name
+        if variable_name == '':
+            raise ValueError('There is no such controlled component')
+        else:
+            if isinstance(variable_value, dict):
+                self.eng.workspace[variable_name] = self.eng.struct(variable_value)
+            else:
+                self.eng.workspace[variable_name] = variable_value
+
     def read_variable(self, variable_name, simulation_out=True):
         if simulation_out:
             value = self.eng.eval(f'out.get("{variable_name}")')
