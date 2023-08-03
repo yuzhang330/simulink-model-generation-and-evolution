@@ -27,9 +27,12 @@ class ElectricalModelBuilder(ModelBuilder):
 
 @gin.configurable
 class ACBuilder(ElectricalModelBuilder):
-    def __init__(self):
+    def __init__(self, max_source_component=4, max_element_component=5, max_sensor_component=3):
         super().__init__(ACComponentFactory())
         self.reset()
+        self.max_source_component = max_source_component
+        self.max_element_component = max_element_component
+        self.max_sensor_component = max_sensor_component
 
     def reset(self):
         self._model = System()
@@ -76,9 +79,10 @@ class ACBuilder(ElectricalModelBuilder):
                     subsystem.add_connection((port.replace('-', ''), out_port[0].get_port_info()[0]))
         return subsystem
 
-    def create_source_subsystem(self, type, max_num_component=3, seed=None, battery_exsist=None):
+    def create_source_subsystem(self, type, seed=None, battery_exsist=None):
         if seed:
             random.seed(seed)
+        max_num_component = self.max_source_component
         if type == 'voltage':
             subsystem = Subsystem(subsystem_type='source_voltage')
             num_sources = random.randint(1, max_num_component)
@@ -158,14 +162,18 @@ class ACBuilder(ElectricalModelBuilder):
                                        port_class.name == 'ConnectionPort' and port_class.port_type == 'Outport']
         return subsystem_connected
 
-    def create_element_subsystem(self, max_num_component=5, seed=None):
+    def create_element_subsystem(self, seed=None, diode_exist=None):
         subsystem = Subsystem(subsystem_type='element')
         if seed:
             random.seed(seed)
         #create elements randomly
+        max_num_component = self.max_element_component
         num_components = random.randint(1, max_num_component)
         for i in range(num_components):
             component = self.component_factory.create_element(seed=seed)
+            if diode_exist is None:
+                while component.name == 'Diode':
+                    component = self.component_factory.create_element(seed=seed)
             subsystem.add_component(component)
         #connect signal port
         comp = [comp for comp in subsystem.component_list if comp.component_type == 'Element']
@@ -291,10 +299,11 @@ class ACBuilder(ElectricalModelBuilder):
                                        port_class.name == 'ConnectionPort' and port_class.port_type == 'Outport']
         return subsystem
 
-    def create_sensor_subsystem(self, max_num_component=3, seed=None):
+    def create_sensor_subsystem(self, seed=None):
         if seed:
             random.seed(seed)
         subsystem = Subsystem(subsystem_type='sensor')
+        max_num_component = self.max_sensor_component
         num_sensors = random.randint(1, max_num_component)
         for i in range(num_sensors):
             component = self.component_factory.create_sensor(seed=seed)

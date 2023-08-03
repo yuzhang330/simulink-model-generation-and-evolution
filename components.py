@@ -772,6 +772,8 @@ class UniversalMotor(Mission):
 
     @property
     def parameter(self):
+        if self.P_in <= self.P_rated:
+            self.P_in = self.P_rated + 50
         parameters = {
             'w_rated': self.w_rated,
             'P_rated': self.P_rated,
